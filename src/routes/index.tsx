@@ -1,18 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useSuspenseQuery, queryOptions, useQuery } from "@tanstack/react-query";
+import { useMemo, useState, useEffect } from "react";
 import {
-  BarChart,
-  Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   Tooltip,
   ResponsiveContainer,
   CartesianGrid,
-  Cell,
 } from "recharts";
-import { TrendingUp, TrendingDown, Search, Flame, Calendar, Clock } from "lucide-react";
+import { TrendingUp, TrendingDown, Search, Calendar, Clock, LineChart as LineIcon, Activity } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -31,7 +31,12 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getIPOData, type ListedIPO } from "@/lib/ipo.functions";
+import {
+  getIPOData,
+  getFirstDayChart,
+  getFirstDayRanges,
+  type ListedIPO,
+} from "@/lib/ipo.functions";
 
 const ipoQuery = queryOptions({
   queryKey: ["ipo-data"],
@@ -74,6 +79,8 @@ function IPOPage() {
   const [query, setQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortKey>("listingDate");
   const [filter, setFilter] = useState<"all" | "winner" | "loser">("all");
+  const [lookupCode, setLookupCode] = useState("");
+  const [lookupSubmitted, setLookupSubmitted] = useState<string | null>(null);
 
   const filteredListed = useMemo(() => {
     let rows = [...listed];
@@ -109,21 +116,23 @@ function IPOPage() {
     const withPct = listed.filter((r) => r.firstDayChangePct != null);
     const winners = withPct.filter((r) => (r.firstDayChangePct ?? 0) > 0).length;
     const losers = withPct.filter((r) => (r.firstDayChangePct ?? 0) < 0).length;
+    const flat = withPct.filter((r) => (r.firstDayChangePct ?? 0) === 0).length;
+    const noData = listed.length - withPct.length;
     const avg =
       withPct.reduce((s, r) => s + (r.firstDayChangePct ?? 0), 0) / (withPct.length || 1);
-    return { total: listed.length, winners, losers, avg };
+    return { total: listed.length, winners, losers, flat, noData, avg };
   }, [listed]);
 
-  const chartData = useMemo(() => {
-    return [...listed]
-      .filter((r) => r.firstDayChangePct != null)
-      .sort((a, b) => (b.firstDayChangePct ?? 0) - (a.firstDayChangePct ?? 0))
-      .slice(0, 12)
-      .map((r) => ({
-        name: r.name.length > 6 ? r.name.slice(0, 6) + "…" : r.name,
-        change: r.firstDayChangePct,
-      }));
-  }, [listed]);
+  // Lazy fetch first-day volatility for the codes shown in table
+  const visibleCodes = filteredListed.slice(0, 30).map((r) => r.code);
+  const visibleKey = visibleCodes.join(",");
+  const rangesQuery = useQuery({
+    queryKey: ["first-day-ranges", visibleKey],
+    queryFn: () => getFirstDayRanges({ data: { codes: visibleCodes } }),
+    enabled: visibleCodes.length > 0,
+    staleTime: 30 * 60 * 1000,
+  });
+  const ranges = rangesQuery.data?.ranges ?? {};
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -173,7 +182,7 @@ function IPOPage() {
         </section>
 
         {/* Stats */}
-        <section className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <section className="grid grid-cols-2 sm:grid-cols-5 gap-4">
           <StatCard label="過往新股" value={stats.total.toString()} />
           <StatCard
             label="首日上升"
@@ -186,52 +195,53 @@ function IPOPage() {
             tone="danger"
           />
           <StatCard
+            label={stats.noData > 0 ? `打和 / 無數據` : `打和`}
+            value={
+              stats.noData > 0
+                ? `${stats.flat} / ${stats.noData}`
+                : stats.flat.toString()
+            }
+          />
+          <StatCard
             label="平均首日升跌"
             value={`${stats.avg >= 0 ? "+" : ""}${stats.avg.toFixed(2)}%`}
             tone={stats.avg >= 0 ? "success" : "danger"}
           />
         </section>
 
-        {/* Chart */}
+        {/* Stock Lookup — first day 1-hour chart */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Flame className="h-4 w-4" style={{ color: "var(--primary)" }} />
-              首日表現排行 (Top 12)
+              <LineIcon className="h-4 w-4" style={{ color: "var(--primary)" }} />
+              首日 1 小時走勢查詢
             </CardTitle>
           </CardHeader>
-          <CardContent className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} />
-                <YAxis
-                  tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-                  tickFormatter={(v) => `${v}%`}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: "var(--card)",
-                    border: "1px solid var(--border)",
-                    borderRadius: 8,
-                    color: "var(--card-foreground)",
-                  }}
-                  formatter={(v: number) => [`${v.toFixed(2)}%`, "首日"]}
-                />
-                <Bar dataKey="change" radius={[6, 6, 0, 0]}>
-                  {chartData.map((d, i) => (
-                    <Cell
-                      key={i}
-                      fill={
-                        (d.change ?? 0) >= 0
-                          ? "var(--color-success)"
-                          : "var(--color-danger)"
-                      }
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+          <CardContent>
+            <form
+              className="flex gap-2 mb-4"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const c = lookupCode.trim().replace(/\D/g, "");
+                if (c) setLookupSubmitted(c.padStart(5, "0"));
+              }}
+            >
+              <Input
+                placeholder="輸入股票編號 (例如 1879)"
+                value={lookupCode}
+                onChange={(e) => setLookupCode(e.target.value)}
+                className="max-w-xs"
+                inputMode="numeric"
+              />
+              <Button type="submit">查詢</Button>
+            </form>
+            {lookupSubmitted ? (
+              <FirstDayChartCard code={lookupSubmitted} />
+            ) : (
+              <p className="text-sm text-muted-foreground py-12 text-center">
+                輸入股票編號查看首日上市起 1 小時嘅 5 分鐘 K 線走勢
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -290,6 +300,7 @@ function IPOPage() {
                       <TableHead className="text-right">發行價</TableHead>
                       <TableHead className="text-right">現價</TableHead>
                       <TableHead className="text-right">首日升跌</TableHead>
+                      <TableHead className="text-right">首日波幅</TableHead>
                       <TableHead className="text-right">累積升跌</TableHead>
                       <TableHead className="text-right">每手</TableHead>
                       <TableHead className="text-right">孖展超購</TableHead>
@@ -317,6 +328,9 @@ function IPOPage() {
                           <PctCell value={r.firstDayChangePct} />
                         </TableCell>
                         <TableCell className="text-right">
+                          <RangeCell value={ranges[r.code.padStart(5, "0")]} loading={rangesQuery.isLoading} />
+                        </TableCell>
+                        <TableCell className="text-right">
                           <PctCell value={r.cumulativeChangePct} />
                         </TableCell>
                         <TableCell className="text-right font-mono text-sm">
@@ -339,7 +353,7 @@ function IPOPage() {
                     ))}
                     {filteredListed.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={11} className="text-center py-12 text-muted-foreground">
+                        <TableCell colSpan={12} className="text-center py-12 text-muted-foreground">
                           冇符合條件嘅 IPO
                         </TableCell>
                       </TableRow>
