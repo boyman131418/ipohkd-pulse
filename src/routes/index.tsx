@@ -542,21 +542,33 @@ function RangeCell({ value, loading }: { value: number | null | undefined; loadi
 function FirstDayChartCard({
   code,
   fallbackCodes = [],
+  submitTick = 0,
+  onLoaded,
 }: {
   code: string;
   fallbackCodes?: string[];
+  submitTick?: number;
+  onLoaded?: (code: string) => void;
 }) {
   const [activeCode, setActiveCode] = useState(code);
   const [triedFallbacks, setTriedFallbacks] = useState<string[]>([]);
   useEffect(() => {
     setActiveCode(code);
     setTriedFallbacks([]);
-  }, [code]);
+  }, [code, submitTick]);
   const q = useQuery({
     queryKey: ["first-day-chart", activeCode],
     queryFn: () => getFirstDayChart({ data: { code: activeCode } }),
     staleTime: 30 * 60 * 1000,
   });
+  // Notify parent when data is successfully loaded (cache hit or fresh)
+  useEffect(() => {
+    if (q.isLoading || q.isFetching) return;
+    const d = q.data;
+    if (d && !d.error && d.points.length > 0) {
+      onLoaded?.(activeCode);
+    }
+  }, [q.data, q.isLoading, q.isFetching, activeCode, onLoaded, submitTick]);
   // auto-fallback: if current returns no data, try the next fallback code
   useEffect(() => {
     if (q.isLoading || q.isFetching) return;
@@ -571,8 +583,15 @@ function FirstDayChartCard({
       setActiveCode(next);
     }
   }, [q.data, q.isLoading, q.isFetching, activeCode, fallbackCodes, triedFallbacks]);
-  if (q.isLoading) {
-    return <p className="text-sm text-muted-foreground py-12 text-center">載入中…</p>;
+  if (q.isLoading || q.isFetching) {
+    return (
+      <div className="py-12 text-center space-y-2">
+        <div className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+          <span className="h-3 w-3 rounded-full border-2 border-current border-t-transparent animate-spin" />
+          正在查詢 <span className="font-mono font-semibold text-foreground">{activeCode}</span> …
+        </div>
+      </div>
+    );
   }
   const d = q.data;
   if (!d || d.error || d.points.length === 0) {
