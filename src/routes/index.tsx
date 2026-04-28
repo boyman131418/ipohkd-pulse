@@ -291,6 +291,9 @@ function IPOPage() {
                       <TableHead className="text-right">現價</TableHead>
                       <TableHead className="text-right">首日升跌</TableHead>
                       <TableHead className="text-right">累積升跌</TableHead>
+                      <TableHead className="text-right">每手</TableHead>
+                      <TableHead className="text-right">孖展超購</TableHead>
+                      <TableHead className="text-right">穩抽手數</TableHead>
                       <TableHead className="text-right">入場費 (HKD)</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -317,6 +320,17 @@ function IPOPage() {
                           <PctCell value={r.cumulativeChangePct} />
                         </TableCell>
                         <TableCell className="text-right font-mono text-sm">
+                          {fmt(r.lotSize, 0)}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-sm">
+                          {r.marginOversubscription != null
+                            ? `${r.marginOversubscription.toFixed(2)}x`
+                            : "—"}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-sm">
+                          {r.guaranteedLots != null ? `${r.guaranteedLots} 手` : "—"}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-sm">
                           {r.minSubscriptionAmount
                             ? `$${r.minSubscriptionAmount.toLocaleString()}`
                             : "—"}
@@ -325,7 +339,7 @@ function IPOPage() {
                     ))}
                     {filteredListed.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
+                        <TableCell colSpan={11} className="text-center py-12 text-muted-foreground">
                           冇符合條件嘅 IPO
                         </TableCell>
                       </TableRow>
@@ -348,6 +362,8 @@ function IPOPage() {
                       <TableHead>招股價</TableHead>
                       <TableHead className="text-right">每手</TableHead>
                       <TableHead className="text-right">入場費 (HKD)</TableHead>
+                      <TableHead>市場孖展熱度</TableHead>
+                      <TableHead className="text-right">預計穩抽 (參考)</TableHead>
                       <TableHead>截止日</TableHead>
                       <TableHead>上市日</TableHead>
                     </TableRow>
@@ -369,6 +385,36 @@ function IPOPage() {
                         <TableCell className="text-right font-mono">
                           {r.entryFee ? `$${r.entryFee.toLocaleString()}` : "—"}
                         </TableCell>
+                        <TableCell>
+                          {r.marginStatus ? (
+                            <Badge
+                              variant="outline"
+                              className="font-normal"
+                              style={{
+                                borderColor:
+                                  r.marginStatus.includes("高")
+                                    ? "var(--color-success)"
+                                    : r.marginStatus.includes("冷")
+                                      ? "var(--color-danger)"
+                                      : "var(--border)",
+                                color: r.marginStatus.includes("高")
+                                  ? "var(--color-success)"
+                                  : r.marginStatus.includes("冷")
+                                    ? "var(--color-danger)"
+                                    : "var(--foreground)",
+                              }}
+                            >
+                              {r.marginStatus}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">待公布</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-sm text-muted-foreground">
+                          {r.estimatedGuaranteedLots != null
+                            ? `~${r.estimatedGuaranteedLots} 手`
+                            : "—"}
+                        </TableCell>
                         <TableCell className="text-muted-foreground text-sm">
                           {r.subscriptionDeadline}
                         </TableCell>
@@ -380,7 +426,7 @@ function IPOPage() {
                     ))}
                     {upcoming.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
+                        <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
                           暫時冇即將上市嘅 IPO
                         </TableCell>
                       </TableRow>
