@@ -398,7 +398,7 @@ function IPOPage() {
                       <TableHead className="text-right">首日波幅</TableHead>
                       <TableHead className="text-right">累積升跌</TableHead>
                       <TableHead className="text-right">每手</TableHead>
-                      <TableHead className="text-right">集資額</TableHead>
+                      <TableHead className="text-right">上市市值 (億)</TableHead>
                       <TableHead className="text-right">孖展超購</TableHead>
                       <TableHead className="text-right">穩抽手數</TableHead>
                       <TableHead className="text-right">入場費 (HKD)</TableHead>
@@ -444,7 +444,7 @@ function IPOPage() {
                           {fmt(r.lotSize, 0)}
                         </TableCell>
                         <TableCell className="text-right font-mono text-sm">
-                          {r.marketCap ?? "—"}
+                          {r.marketCap ? `${r.marketCap} 億` : "—"}
                         </TableCell>
                         <TableCell className="text-right font-mono text-sm">
                           {r.marginOversubscription != null
