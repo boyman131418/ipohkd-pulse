@@ -183,7 +183,11 @@ function IPOPage() {
     const noData = listed.length - withPct.length;
     const avg =
       withPct.reduce((s, r) => s + (r.firstDayChangePct ?? 0), 0) / (withPct.length || 1);
-    return { total: listed.length, winners, losers, flat, noData, avg };
+    const withCum = listed.filter((r) => r.cumulativeChangePct != null);
+    const avgCum =
+      withCum.reduce((s, r) => s + (r.cumulativeChangePct ?? 0), 0) /
+      (withCum.length || 1);
+    return { total: listed.length, winners, losers, flat, noData, avg, avgCum };
   }, [listed]);
 
   // Lazy fetch first-day volatility for the codes shown in table
@@ -245,7 +249,7 @@ function IPOPage() {
         </section>
 
         {/* Stats */}
-        <section className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+        <section className="grid grid-cols-2 sm:grid-cols-6 gap-4">
           <StatCard label="過往新股" value={stats.total.toString()} />
           <StatCard
             label="首日上升"
@@ -269,6 +273,11 @@ function IPOPage() {
             label="平均首日升跌"
             value={`${stats.avg >= 0 ? "+" : ""}${stats.avg.toFixed(2)}%`}
             tone={stats.avg >= 0 ? "success" : "danger"}
+          />
+          <StatCard
+            label="平均累積升跌"
+            value={`${stats.avgCum >= 0 ? "+" : ""}${stats.avgCum.toFixed(2)}%`}
+            tone={stats.avgCum >= 0 ? "success" : "danger"}
           />
         </section>
 
