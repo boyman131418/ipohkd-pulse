@@ -581,7 +581,7 @@ function FirstDayChartCard({
   );
 }
 
-function FirstDayChartBody({ d }: { d: NonNullable<ReturnType<typeof getFirstDayChart>> extends Promise<infer R> ? R : never }) {
+function FirstDayChartBody({ d }: { d: FirstDayChart }) {
   const chartData = d.points.map((p) => ({
     time: new Date(p.t * 1000).toLocaleTimeString("zh-HK", {
       hour: "2-digit",
