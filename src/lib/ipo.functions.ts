@@ -90,9 +90,10 @@ const CACHE_MS = 5 * 60 * 1000;
 
 async function fetchListed(): Promise<ListedIPO[]> {
   const all: ListedIPO[] = [];
-  // page through ~3 pages = ~60 IPOs covering past year+
-  for (let page = 1; page <= 3; page++) {
-    const url = `https://www.aastocks.com/tc/stocks/market/ipo/listedipo.aspx?s=1&o=0&page=${page}`;
+  // s=3&o=0 = 按上市日期 DESC，連續分頁，覆蓋過去一年
+  const seen = new Set<string>();
+  for (let page = 1; page <= 8; page++) {
+    const url = `https://www.aastocks.com/tc/stocks/market/ipo/listedipo.aspx?s=3&o=0&page=${page}`;
     const res = await fetch(url, { headers: HEADERS });
     if (!res.ok) continue;
     const html = await res.text();
@@ -105,6 +106,8 @@ async function fetchListed(): Promise<ListedIPO[]> {
       if (cells.length < 12) continue;
       const { name, code } = splitNameCode(cells[1]);
       if (!code) continue;
+      if (seen.has(code)) continue;
+      seen.add(code);
       const listingDate = cells[2];
       const lotSize = parseNum(cells[3]);
       const marketCap = cells[4] === "N/A" ? null : cells[4];
@@ -142,6 +145,14 @@ async function fetchListed(): Promise<ListedIPO[]> {
         marginOversubscription,
         guaranteedLots,
       });
+    }
+    // 已經爬到一年前就停
+    const oldestOnPage = all[all.length - 1]?.listingDate;
+    if (oldestOnPage) {
+      const oneYearAgo = new Date();
+      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+      const d = new Date(oldestOnPage.replace(/\//g, "-"));
+      if (!isNaN(d.getTime()) && d < oneYearAgo) break;
     }
   }
   return all;
