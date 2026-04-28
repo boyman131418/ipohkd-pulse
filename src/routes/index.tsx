@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useSuspenseQuery, queryOptions, useQuery, useIsFetching } from "@tanstack/react-query";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import {
   LineChart,
   Line,
@@ -54,6 +54,18 @@ function fmt(n: number | null, digits = 2) {
   return n == null ? "—" : n.toLocaleString("en-US", { maximumFractionDigits: digits });
 }
 
+function fmtFetchedAt(ts: number) {
+  return new Intl.DateTimeFormat("zh-HK", {
+    timeZone: "Asia/Hong_Kong",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(new Date(ts));
+}
+
 function PctCell({ value }: { value: number | null }) {
   if (value == null) return <span className="text-muted-foreground">—</span>;
   const positive = value >= 0;
@@ -77,25 +89,22 @@ function IPOPage() {
   const listed = data.listed;
   const upcoming = data.upcoming;
 
-  const [query, setQuery] = useState("");
-  const [sortBy, setSortBy] = useState<SortKey>("listingDate");
-  const [filter, setFilter] = useState<"all" | "winner" | "loser">("all");
-  const [lookupCode, setLookupCode] = useState("");
-  const [lookupSubmitted, setLookupSubmitted] = useState<string | null>(null);
-  const [submitTick, setSubmitTick] = useState(0);
-  const [justLoaded, setJustLoaded] = useState<string | null>(null);
-  const lookupFetching = useIsFetching({ queryKey: ["first-day-chart"] }) > 0;
-
-  // 預設為最近期有完整首日數據嘅股票
+  // 預設為最近期有完整首日數據嘅股票；直接用作初始值，避免畫面停留喺「載入中」。
   const defaultLookupCode = useMemo(() => {
     const found = listed.find(
-      (r) =>
-        r.firstDayChangePct != null &&
-        r.issuePrice != null &&
-        r.currentPrice != null,
+      (r) => r.firstDayChangePct != null && r.listingDate && r.code,
     );
     return found?.code.padStart(5, "0") ?? null;
   }, [listed]);
+
+  const [query, setQuery] = useState("");
+  const [sortBy, setSortBy] = useState<SortKey>("listingDate");
+  const [filter, setFilter] = useState<"all" | "winner" | "loser">("all");
+  const [lookupCode, setLookupCode] = useState(defaultLookupCode ?? "");
+  const [lookupSubmitted, setLookupSubmitted] = useState<string | null>(defaultLookupCode);
+  const [submitTick, setSubmitTick] = useState(0);
+  const [justLoaded, setJustLoaded] = useState<string | null>(null);
+  const lookupFetching = useIsFetching({ queryKey: ["first-day-chart"] }) > 0;
 
   useEffect(() => {
     if (!lookupSubmitted && defaultLookupCode) {
@@ -103,6 +112,20 @@ function IPOPage() {
       setLookupCode(defaultLookupCode);
     }
   }, [defaultLookupCode, lookupSubmitted]);
+
+  const fallbackCodes = useMemo(
+    () =>
+      listed
+        .filter((r) => r.firstDayChangePct != null)
+        .slice(0, 10)
+        .map((r) => r.code.padStart(5, "0")),
+    [listed],
+  );
+
+  const handleChartLoaded = useCallback((c: string) => {
+    setJustLoaded(c);
+    window.setTimeout(() => setJustLoaded(null), 2500);
+  }, []);
 
   const filteredListed = useMemo(() => {
     let rows = [...listed];
@@ -174,7 +197,7 @@ function IPOPage() {
           </div>
           <div className="text-xs text-muted-foreground hidden sm:block">
             <Clock className="inline h-3 w-3 mr-1" />
-            更新: {new Date(data.fetchedAt).toLocaleString("zh-HK")}
+            更新: {fmtFetchedAt(data.fetchedAt)}
           </div>
         </div>
       </header>
@@ -273,18 +296,12 @@ function IPOPage() {
               <FirstDayChartCard
                 code={lookupSubmitted}
                 submitTick={submitTick}
-                onLoaded={(c) => {
-                  setJustLoaded(c);
-                  window.setTimeout(() => setJustLoaded(null), 2500);
-                }}
-                fallbackCodes={listed
-                  .filter((r) => r.firstDayChangePct != null)
-                  .slice(0, 10)
-                  .map((r) => r.code.padStart(5, "0"))}
+                onLoaded={handleChartLoaded}
+                fallbackCodes={fallbackCodes}
               />
             ) : (
               <p className="text-sm text-muted-foreground py-12 text-center">
-                載入最近期完整數據中…
+                暫時未搵到最近期完整首日數據，請輸入股票編號查詢。
               </p>
             )}
             {justLoaded && (
