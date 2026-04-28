@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useSuspenseQuery, queryOptions, useQuery } from "@tanstack/react-query";
+import { useSuspenseQuery, queryOptions, useQuery, useIsFetching } from "@tanstack/react-query";
 import { useMemo, useState, useEffect } from "react";
 import {
   LineChart,
@@ -82,6 +82,9 @@ function IPOPage() {
   const [filter, setFilter] = useState<"all" | "winner" | "loser">("all");
   const [lookupCode, setLookupCode] = useState("");
   const [lookupSubmitted, setLookupSubmitted] = useState<string | null>(null);
+  const [submitTick, setSubmitTick] = useState(0);
+  const [justLoaded, setJustLoaded] = useState<string | null>(null);
+  const lookupFetching = useIsFetching({ queryKey: ["first-day-chart"] }) > 0;
 
   // 預設為最近期有完整首日數據嘅股票
   const defaultLookupCode = useMemo(() => {
@@ -242,7 +245,10 @@ function IPOPage() {
               onSubmit={(e) => {
                 e.preventDefault();
                 const c = lookupCode.trim().replace(/\D/g, "");
-                if (c) setLookupSubmitted(c.padStart(5, "0"));
+                if (c) {
+                  setLookupSubmitted(c.padStart(5, "0"));
+                  setSubmitTick((t) => t + 1);
+                }
               }}
             >
               <Input
@@ -252,11 +258,25 @@ function IPOPage() {
                 className="max-w-xs"
                 inputMode="numeric"
               />
-              <Button type="submit">查詢</Button>
+              <Button type="submit" disabled={lookupFetching}>
+                {lookupFetching ? (
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-3 w-3 rounded-full border-2 border-current border-t-transparent animate-spin" />
+                    查詢中…
+                  </span>
+                ) : (
+                  "查詢"
+                )}
+              </Button>
             </form>
             {lookupSubmitted ? (
               <FirstDayChartCard
                 code={lookupSubmitted}
+                submitTick={submitTick}
+                onLoaded={(c) => {
+                  setJustLoaded(c);
+                  window.setTimeout(() => setJustLoaded(null), 2500);
+                }}
                 fallbackCodes={listed
                   .filter((r) => r.firstDayChangePct != null)
                   .slice(0, 10)
@@ -265,6 +285,11 @@ function IPOPage() {
             ) : (
               <p className="text-sm text-muted-foreground py-12 text-center">
                 載入最近期完整數據中…
+              </p>
+            )}
+            {justLoaded && (
+              <p className="mt-3 text-xs inline-flex items-center gap-1 px-2 py-1 rounded-md" style={{ background: "color-mix(in oklab, var(--color-success) 15%, transparent)", color: "var(--color-success)" }}>
+                ✓ 已載入 <span className="font-mono font-semibold">{justLoaded}</span>
               </p>
             )}
           </CardContent>
@@ -527,21 +552,33 @@ function RangeCell({ value, loading }: { value: number | null | undefined; loadi
 function FirstDayChartCard({
   code,
   fallbackCodes = [],
+  submitTick = 0,
+  onLoaded,
 }: {
   code: string;
   fallbackCodes?: string[];
+  submitTick?: number;
+  onLoaded?: (code: string) => void;
 }) {
   const [activeCode, setActiveCode] = useState(code);
   const [triedFallbacks, setTriedFallbacks] = useState<string[]>([]);
   useEffect(() => {
     setActiveCode(code);
     setTriedFallbacks([]);
-  }, [code]);
+  }, [code, submitTick]);
   const q = useQuery({
     queryKey: ["first-day-chart", activeCode],
     queryFn: () => getFirstDayChart({ data: { code: activeCode } }),
     staleTime: 30 * 60 * 1000,
   });
+  // Notify parent when data is successfully loaded (cache hit or fresh)
+  useEffect(() => {
+    if (q.isLoading || q.isFetching) return;
+    const d = q.data;
+    if (d && !d.error && d.points.length > 0) {
+      onLoaded?.(activeCode);
+    }
+  }, [q.data, q.isLoading, q.isFetching, activeCode, onLoaded, submitTick]);
   // auto-fallback: if current returns no data, try the next fallback code
   useEffect(() => {
     if (q.isLoading || q.isFetching) return;
@@ -556,8 +593,15 @@ function FirstDayChartCard({
       setActiveCode(next);
     }
   }, [q.data, q.isLoading, q.isFetching, activeCode, fallbackCodes, triedFallbacks]);
-  if (q.isLoading) {
-    return <p className="text-sm text-muted-foreground py-12 text-center">載入中…</p>;
+  if (q.isLoading || q.isFetching) {
+    return (
+      <div className="py-12 text-center space-y-2">
+        <div className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+          <span className="h-3 w-3 rounded-full border-2 border-current border-t-transparent animate-spin" />
+          正在查詢 <span className="font-mono font-semibold text-foreground">{activeCode}</span> …
+        </div>
+      </div>
+    );
   }
   const d = q.data;
   if (!d || d.error || d.points.length === 0) {
