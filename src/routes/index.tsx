@@ -255,7 +255,7 @@ function IPOPage() {
         </section>
 
         {/* Stock Lookup — first day 1-hour chart */}
-        <Card>
+        <Card id="first-day-chart">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <LineIcon className="h-4 w-4" style={{ color: "var(--primary)" }} />
