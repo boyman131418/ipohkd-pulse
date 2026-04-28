@@ -666,6 +666,12 @@ function FirstDayChartCard({
 }
 
 function FirstDayChartBody({ d }: { d: FirstDayChart }) {
+  const { data: ipoData } = useSuspenseQuery(ipoQuery);
+  const meta = ipoData.listed.find(
+    (r) => r.code.padStart(5, "0") === d.code.padStart(5, "0"),
+  );
+  const currentPrice = meta?.currentPrice ?? null;
+  const cumulativeChangePct = meta?.cumulativeChangePct ?? null;
   const chartData = d.points.map((p) => ({
     time: new Date(p.t * 1000).toLocaleTimeString("zh-HK", {
       hour: "2-digit",
@@ -675,7 +681,18 @@ function FirstDayChartBody({ d }: { d: FirstDayChart }) {
     }),
     price: p.price,
   }));
-  const stats = [
+  const cumTone =
+    cumulativeChangePct == null
+      ? undefined
+      : cumulativeChangePct >= 0
+        ? "var(--color-success)"
+        : "var(--color-danger)";
+  const stats: {
+    label: string;
+    value: string;
+    highlight?: boolean;
+    color?: string;
+  }[] = [
     { label: "上市日", value: d.listingDate ?? "—" },
     { label: "開盤", value: d.open != null ? d.open.toFixed(3) : "—" },
     { label: "最高", value: d.high != null ? d.high.toFixed(3) : "—" },
@@ -685,16 +702,34 @@ function FirstDayChartBody({ d }: { d: FirstDayChart }) {
       value: d.rangePct != null ? `${d.rangePct.toFixed(2)}%` : "—",
       highlight: true,
     },
+    {
+      label: "現價",
+      value: currentPrice != null ? currentPrice.toFixed(3) : "—",
+    },
+    {
+      label: "累積升跌",
+      value:
+        cumulativeChangePct != null
+          ? `${cumulativeChangePct >= 0 ? "+" : ""}${cumulativeChangePct.toFixed(2)}%`
+          : "—",
+      color: cumTone,
+    },
   ];
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-sm">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 text-sm">
         {stats.map((s) => (
           <div key={s.label} className="rounded-lg border border-border/60 p-2">
             <p className="text-[11px] text-muted-foreground">{s.label}</p>
             <p
               className="font-mono font-semibold"
-              style={s.highlight ? { color: "var(--primary)" } : undefined}
+              style={
+                s.highlight
+                  ? { color: "var(--primary)" }
+                  : s.color
+                    ? { color: s.color }
+                    : undefined
+              }
             >
               {s.value}
             </p>
