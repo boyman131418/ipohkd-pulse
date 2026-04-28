@@ -82,6 +82,24 @@ function IPOPage() {
   const [lookupCode, setLookupCode] = useState("");
   const [lookupSubmitted, setLookupSubmitted] = useState<string | null>(null);
 
+  // 預設為最近期有完整首日數據嘅股票
+  const defaultLookupCode = useMemo(() => {
+    const found = listed.find(
+      (r) =>
+        r.firstDayChangePct != null &&
+        r.issuePrice != null &&
+        r.currentPrice != null,
+    );
+    return found?.code.padStart(5, "0") ?? null;
+  }, [listed]);
+
+  useEffect(() => {
+    if (!lookupSubmitted && defaultLookupCode) {
+      setLookupSubmitted(defaultLookupCode);
+      setLookupCode(defaultLookupCode);
+    }
+  }, [defaultLookupCode, lookupSubmitted]);
+
   const filteredListed = useMemo(() => {
     let rows = [...listed];
     const q = query.trim().toLowerCase();
