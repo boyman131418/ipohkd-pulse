@@ -357,6 +357,7 @@ function IPOPage() {
                   <SelectItem value="firstDay">首日升幅</SelectItem>
                   <SelectItem value="cumulative">累積升幅</SelectItem>
                   <SelectItem value="minSub">入場費</SelectItem>
+                  <SelectItem value="marginOversub">孖展超購</SelectItem>
                   <SelectItem value="code">編號</SelectItem>
                 </SelectContent>
               </Select>
