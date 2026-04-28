@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useSuspenseQuery, queryOptions, useQuery } from "@tanstack/react-query";
+import { useSuspenseQuery, queryOptions, useQuery, useIsFetching } from "@tanstack/react-query";
 import { useMemo, useState, useEffect } from "react";
 import {
   LineChart,
@@ -84,6 +84,7 @@ function IPOPage() {
   const [lookupSubmitted, setLookupSubmitted] = useState<string | null>(null);
   const [submitTick, setSubmitTick] = useState(0);
   const [justLoaded, setJustLoaded] = useState<string | null>(null);
+  const lookupFetching = useIsFetching({ queryKey: ["first-day-chart"] }) > 0;
 
   // 預設為最近期有完整首日數據嘅股票
   const defaultLookupCode = useMemo(() => {
@@ -257,7 +258,16 @@ function IPOPage() {
                 className="max-w-xs"
                 inputMode="numeric"
               />
-              <Button type="submit">查詢</Button>
+              <Button type="submit" disabled={lookupFetching}>
+                {lookupFetching ? (
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-3 w-3 rounded-full border-2 border-current border-t-transparent animate-spin" />
+                    查詢中…
+                  </span>
+                ) : (
+                  "查詢"
+                )}
+              </Button>
             </form>
             {lookupSubmitted ? (
               <FirstDayChartCard
