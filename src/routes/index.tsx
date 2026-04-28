@@ -486,3 +486,104 @@ function StatCard({
     </Card>
   );
 }
+
+function RangeCell({ value, loading }: { value: number | null | undefined; loading: boolean }) {
+  if (loading && value == null)
+    return <span className="text-muted-foreground text-xs">…</span>;
+  if (value == null) return <span className="text-muted-foreground">—</span>;
+  return (
+    <span className="inline-flex items-center gap-1 font-mono text-sm" style={{ color: "var(--primary)" }}>
+      <Activity className="h-3 w-3" />
+      {value.toFixed(2)}%
+    </span>
+  );
+}
+
+function FirstDayChartCard({ code }: { code: string }) {
+  const q = useQuery({
+    queryKey: ["first-day-chart", code],
+    queryFn: () => getFirstDayChart({ data: { code } }),
+    staleTime: 30 * 60 * 1000,
+  });
+  if (q.isLoading) {
+    return <p className="text-sm text-muted-foreground py-12 text-center">載入中…</p>;
+  }
+  const d = q.data;
+  if (!d || d.error || d.points.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground py-12 text-center">
+        冇數據（可能該股票未上市或編號不正確）
+        {d?.error ? <span className="block text-xs mt-2">{d.error}</span> : null}
+      </p>
+    );
+  }
+  const chartData = d.points.map((p) => ({
+    time: new Date(p.t * 1000).toLocaleTimeString("zh-HK", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      timeZone: "Asia/Hong_Kong",
+    }),
+    price: p.price,
+  }));
+  const stats = [
+    { label: "上市日", value: d.listingDate ?? "—" },
+    { label: "開盤", value: d.open != null ? d.open.toFixed(3) : "—" },
+    { label: "最高", value: d.high != null ? d.high.toFixed(3) : "—" },
+    { label: "最低", value: d.low != null ? d.low.toFixed(3) : "—" },
+    {
+      label: "首日波幅",
+      value: d.rangePct != null ? `${d.rangePct.toFixed(2)}%` : "—",
+      highlight: true,
+    },
+  ];
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-sm">
+        {stats.map((s) => (
+          <div key={s.label} className="rounded-lg border border-border/60 p-2">
+            <p className="text-[11px] text-muted-foreground">{s.label}</p>
+            <p
+              className="font-mono font-semibold"
+              style={s.highlight ? { color: "var(--primary)" } : undefined}
+            >
+              {s.value}
+            </p>
+          </div>
+        ))}
+      </div>
+      <div className="h-64 rounded-xl border border-border/60 p-2 bg-card">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+            <XAxis
+              dataKey="time"
+              tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+            />
+            <YAxis
+              domain={["dataMin", "dataMax"]}
+              tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+              tickFormatter={(v) => v.toFixed(2)}
+            />
+            <Tooltip
+              contentStyle={{
+                background: "var(--card)",
+                border: "1px solid var(--border)",
+                borderRadius: 8,
+                color: "var(--card-foreground)",
+              }}
+              formatter={(v: number) => [v.toFixed(3), "價格"]}
+            />
+            <Line
+              type="monotone"
+              dataKey="price"
+              stroke="var(--primary)"
+              strokeWidth={2}
+              dot={false}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
