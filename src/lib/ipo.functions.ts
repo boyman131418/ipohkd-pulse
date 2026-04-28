@@ -15,6 +15,8 @@ export type ListedIPO = {
   firstDayChangePct: number | null;
   cumulativeChangePct: number | null;
   minSubscriptionAmount: number | null;
+  marginOversubscription: number | null;
+  guaranteedLots: number | null;
 };
 
 export type UpcomingIPO = {
@@ -27,6 +29,8 @@ export type UpcomingIPO = {
   subscriptionDeadline: string | null;
   greyMarketDate: string | null;
   listingDate: string | null;
+  marginStatus: string | null;
+  estimatedGuaranteedLots: number | null;
 };
 
 const HEADERS = {
