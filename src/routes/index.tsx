@@ -254,10 +254,16 @@ function IPOPage() {
               <Button type="submit">查詢</Button>
             </form>
             {lookupSubmitted ? (
-              <FirstDayChartCard code={lookupSubmitted} />
+              <FirstDayChartCard
+                code={lookupSubmitted}
+                fallbackCodes={listed
+                  .filter((r) => r.firstDayChangePct != null)
+                  .slice(0, 10)
+                  .map((r) => r.code.padStart(5, "0"))}
+              />
             ) : (
               <p className="text-sm text-muted-foreground py-12 text-center">
-                輸入股票編號查看首日上市起 1 小時嘅 5 分鐘 K 線走勢
+                載入最近期完整數據中…
               </p>
             )}
           </CardContent>
