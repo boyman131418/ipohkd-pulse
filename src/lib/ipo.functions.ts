@@ -374,3 +374,49 @@ export const getFirstDayChart = createServerFn({ method: "GET" })
       } as FirstDayChart;
     }
   });
+
+// === Batch first-day volatility (range%) for table display ===
+export const getFirstDayRanges = createServerFn({ method: "GET" })
+  .inputValidator((d: { codes: string[] }) => d)
+  .handler(async ({ data }) => {
+    const codes = data.codes
+      .map((c) => c.replace(/\D/g, "").padStart(5, "0"))
+      .slice(0, 60);
+    const out: Record<string, number | null> = {};
+    if (!cache) {
+      try {
+        const listed = await fetchListed();
+        cache = { listed, upcoming: [], fetchedAt: Date.now() };
+      } catch {}
+    }
+    const map = new Map(
+      (cache?.listed || []).map((r) => [r.code.padStart(5, "0"), r.listingDate]),
+    );
+    // parallel with concurrency 6
+    const queue = [...codes];
+    const workers = Array.from({ length: 6 }, async () => {
+      while (queue.length) {
+        const code = queue.shift();
+        if (!code) break;
+        const cached = firstDayCache.get(code);
+        if (cached && Date.now() - cached.at < FIRSTDAY_TTL) {
+          out[code] = cached.data.rangePct;
+          continue;
+        }
+        const listingDate = map.get(code);
+        if (!listingDate) {
+          out[code] = null;
+          continue;
+        }
+        try {
+          const r = await fetchYahooFirstDay(code, listingDate);
+          firstDayCache.set(code, { data: r, at: Date.now() });
+          out[code] = r.rangePct;
+        } catch {
+          out[code] = null;
+        }
+      }
+    });
+    await Promise.all(workers);
+    return { ranges: out, fetchedAt: Date.now() };
+  });
