@@ -53,6 +53,12 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { name: "twitter:title", content: "IPOHKD — 香港IPO情報站" },
+      { name: "description", content: "IPO Insights HK provides comprehensive Hong Kong IPO data, past and present." },
+      { property: "og:description", content: "IPO Insights HK provides comprehensive Hong Kong IPO data, past and present." },
+      { name: "twitter:description", content: "IPO Insights HK provides comprehensive Hong Kong IPO data, past and present." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/77bbd0bc-76c9-4cf1-bab0-292412dabcac/id-preview-2b25371a--c1940b38-5c5c-417e-9f56-5cdb29d3b830.lovable.app-1777358827427.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/77bbd0bc-76c9-4cf1-bab0-292412dabcac/id-preview-2b25371a--c1940b38-5c5c-417e-9f56-5cdb29d3b830.lovable.app-1777358827427.png" },
     ],
     links: [
       {
