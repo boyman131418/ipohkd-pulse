@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
-import { useMemo, useState, Suspense } from "react";
+import { useMemo, useState } from "react";
 import {
   BarChart,
   Bar,
