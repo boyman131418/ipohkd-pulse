@@ -422,7 +422,11 @@ function IPOPage() {
                           <PctCell value={r.firstDayChangePct} />
                         </TableCell>
                         <TableCell className="text-right">
-                          <RangeCell value={ranges[r.code.padStart(5, "0")]} loading={rangesQuery.isLoading} />
+                          <RangeCell
+                            value={ranges[r.code.padStart(5, "0")]}
+                            direction={r.firstDayChangePct}
+                            loading={rangesQuery.isLoading}
+                          />
                         </TableCell>
                         <TableCell className="text-right">
                           <PctCell value={r.cumulativeChangePct} />
@@ -584,13 +588,31 @@ function StatCard({
   );
 }
 
-function RangeCell({ value, loading }: { value: number | null | undefined; loading: boolean }) {
+function RangeCell({
+  value,
+  direction,
+  loading,
+}: {
+  value: number | null | undefined;
+  direction?: number | null;
+  loading: boolean;
+}) {
   if (loading && value == null)
     return <span className="text-muted-foreground text-xs">…</span>;
   if (value == null) return <span className="text-muted-foreground">—</span>;
+  const isUp = (direction ?? 0) >= 0;
+  const color = direction == null ? "var(--muted-foreground)" : isUp ? "#16a34a" : "#dc2626";
+  const label = direction == null ? "波幅" : isUp ? "升" : "跌";
   return (
-    <span className="inline-flex items-center gap-1 font-mono text-sm" style={{ color: "var(--primary)" }}>
-      <Activity className="h-3 w-3" />
+    <span className="inline-flex items-center justify-end gap-1 font-mono text-sm" style={{ color }}>
+      {direction == null ? (
+        <Activity className="h-3 w-3" />
+      ) : isUp ? (
+        <TrendingUp className="h-3 w-3" />
+      ) : (
+        <TrendingDown className="h-3 w-3" />
+      )}
+      <span className="text-[10px] font-semibold uppercase tracking-wide opacity-80">{label}</span>
       {value.toFixed(2)}%
     </span>
   );
