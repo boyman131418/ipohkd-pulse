@@ -82,7 +82,7 @@ function PctCell({ value }: { value: number | null }) {
   );
 }
 
-type SortKey = "listingDate" | "firstDay" | "cumulative" | "minSub" | "code";
+type SortKey = "listingDate" | "firstDay" | "cumulative" | "minSub" | "marginOversub" | "code";
 
 function IPOPage() {
   const { data } = useSuspenseQuery(ipoQuery);
@@ -161,6 +161,8 @@ function IPOPage() {
             return x.cumulativeChangePct ?? -Infinity;
           case "minSub":
             return x.minSubscriptionAmount ?? -Infinity;
+          case "marginOversub":
+            return x.marginOversubscription ?? -Infinity;
           case "code":
             return -parseInt(x.code, 10);
           case "listingDate":
