@@ -36,6 +36,7 @@ import {
   getFirstDayChart,
   getFirstDayRanges,
   type ListedIPO,
+  type FirstDayChart,
 } from "@/lib/ipo.functions";
 
 const ipoQuery = queryOptions({
