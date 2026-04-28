@@ -523,12 +523,38 @@ function RangeCell({ value, loading }: { value: number | null | undefined; loadi
   );
 }
 
-function FirstDayChartCard({ code }: { code: string }) {
+function FirstDayChartCard({
+  code,
+  fallbackCodes = [],
+}: {
+  code: string;
+  fallbackCodes?: string[];
+}) {
+  const [activeCode, setActiveCode] = useState(code);
+  const [triedFallbacks, setTriedFallbacks] = useState<string[]>([]);
+  useEffect(() => {
+    setActiveCode(code);
+    setTriedFallbacks([]);
+  }, [code]);
   const q = useQuery({
-    queryKey: ["first-day-chart", code],
-    queryFn: () => getFirstDayChart({ data: { code } }),
+    queryKey: ["first-day-chart", activeCode],
+    queryFn: () => getFirstDayChart({ data: { code: activeCode } }),
     staleTime: 30 * 60 * 1000,
   });
+  // auto-fallback: if current returns no data, try the next fallback code
+  useEffect(() => {
+    if (q.isLoading || q.isFetching) return;
+    const d = q.data;
+    const empty = !d || d.error || d.points.length === 0;
+    if (!empty) return;
+    const next = fallbackCodes.find(
+      (c) => c !== activeCode && !triedFallbacks.includes(c),
+    );
+    if (next) {
+      setTriedFallbacks((prev) => [...prev, activeCode]);
+      setActiveCode(next);
+    }
+  }, [q.data, q.isLoading, q.isFetching, activeCode, fallbackCodes, triedFallbacks]);
   if (q.isLoading) {
     return <p className="text-sm text-muted-foreground py-12 text-center">載入中…</p>;
   }
@@ -536,11 +562,25 @@ function FirstDayChartCard({ code }: { code: string }) {
   if (!d || d.error || d.points.length === 0) {
     return (
       <p className="text-sm text-muted-foreground py-12 text-center">
-        冇數據（可能該股票未上市或編號不正確）
+        {q.isFetching ? "正在嘗試其他股票…" : "冇數據（可能該股票未上市或編號不正確）"}
         {d?.error ? <span className="block text-xs mt-2">{d.error}</span> : null}
       </p>
     );
   }
+  const isFallback = activeCode !== code;
+  return (
+    <div className="space-y-2">
+      {isFallback && (
+        <p className="text-xs text-muted-foreground">
+          自動顯示最近有完整數據嘅股票：<span className="font-mono font-semibold text-foreground">{activeCode}</span>
+        </p>
+      )}
+      <FirstDayChartBody d={d} />
+    </div>
+  );
+}
+
+function FirstDayChartBody({ d }: { d: NonNullable<ReturnType<typeof getFirstDayChart>> extends Promise<infer R> ? R : never }) {
   const chartData = d.points.map((p) => ({
     time: new Date(p.t * 1000).toLocaleTimeString("zh-HK", {
       hour: "2-digit",
