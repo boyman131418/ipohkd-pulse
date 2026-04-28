@@ -259,7 +259,7 @@ function IPOPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <LineIcon className="h-4 w-4" style={{ color: "var(--primary)" }} />
-              首日 1 小時走勢查詢
+              首日全日走勢（1 小時 K 線）
             </CardTitle>
           </CardHeader>
           <CardContent>
