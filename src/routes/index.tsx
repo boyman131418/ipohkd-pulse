@@ -82,6 +82,8 @@ function IPOPage() {
   const [filter, setFilter] = useState<"all" | "winner" | "loser">("all");
   const [lookupCode, setLookupCode] = useState("");
   const [lookupSubmitted, setLookupSubmitted] = useState<string | null>(null);
+  const [submitTick, setSubmitTick] = useState(0);
+  const [justLoaded, setJustLoaded] = useState<string | null>(null);
 
   // 預設為最近期有完整首日數據嘅股票
   const defaultLookupCode = useMemo(() => {
@@ -242,7 +244,10 @@ function IPOPage() {
               onSubmit={(e) => {
                 e.preventDefault();
                 const c = lookupCode.trim().replace(/\D/g, "");
-                if (c) setLookupSubmitted(c.padStart(5, "0"));
+                if (c) {
+                  setLookupSubmitted(c.padStart(5, "0"));
+                  setSubmitTick((t) => t + 1);
+                }
               }}
             >
               <Input
@@ -257,6 +262,11 @@ function IPOPage() {
             {lookupSubmitted ? (
               <FirstDayChartCard
                 code={lookupSubmitted}
+                submitTick={submitTick}
+                onLoaded={(c) => {
+                  setJustLoaded(c);
+                  window.setTimeout(() => setJustLoaded(null), 2500);
+                }}
                 fallbackCodes={listed
                   .filter((r) => r.firstDayChangePct != null)
                   .slice(0, 10)
@@ -265,6 +275,11 @@ function IPOPage() {
             ) : (
               <p className="text-sm text-muted-foreground py-12 text-center">
                 載入最近期完整數據中…
+              </p>
+            )}
+            {justLoaded && (
+              <p className="mt-3 text-xs inline-flex items-center gap-1 px-2 py-1 rounded-md" style={{ background: "color-mix(in oklab, var(--color-success) 15%, transparent)", color: "var(--color-success)" }}>
+                ✓ 已載入 <span className="font-mono font-semibold">{justLoaded}</span>
               </p>
             )}
           </CardContent>
