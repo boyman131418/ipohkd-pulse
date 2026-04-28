@@ -257,9 +257,10 @@ async function fetchYahooFirstDay(code: string, listingDateISO: string): Promise
   // HK trading: 09:30 - 16:00 HKT (UTC+8). build period in UTC seconds.
   const [y, m, d] = listingDateISO.split("/").map((s) => parseInt(s, 10));
   // 00:30 UTC = 08:30 HKT (pre-open) → 08:30 UTC = 16:30 HKT (post-close)
+  // 用 60m K 線取首日全日（資料量小、回應快）
   const dayStart = Date.UTC(y, m - 1, d, 0, 30) / 1000;
   const dayEnd = Date.UTC(y, m - 1, d, 8, 30) / 1000;
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=5m&period1=${dayStart}&period2=${dayEnd}`;
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=60m&period1=${dayStart}&period2=${dayEnd}`;
   const res = await fetch(url, {
     headers: { "User-Agent": "Mozilla/5.0", Accept: "application/json" },
   });
@@ -267,8 +268,8 @@ async function fetchYahooFirstDay(code: string, listingDateISO: string): Promise
   const json = (await res.json()) as any;
   const result = json?.chart?.result?.[0];
   if (!result) {
-    // fallback to range=5d if exact period returns empty
-    const url2 = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=5m&range=5d`;
+    // fallback to wider range with 60m interval
+    const url2 = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=60m&range=1mo`;
     const r2 = await fetch(url2, { headers: { "User-Agent": "Mozilla/5.0" } });
     const j2 = (await r2.json()) as any;
     const r = j2?.chart?.result?.[0];
@@ -307,13 +308,12 @@ function parseYahooResult(code: string, listingDateISO: string, result: any): Fi
     if (l != null) low = low == null ? l : Math.min(low, l);
     points.push({ t: ts[i], price: c });
   }
-  // limit to first 1 hour from open (12 x 5min points)
-  const firstHour = points.slice(0, 12);
+  // 首日全日（每小時一個 K 線）
   const rangePct =
     high != null && low != null && low > 0 ? +((high - low) / low * 100).toFixed(2) : null;
   return {
     code,
-    points: firstHour.length ? firstHour : points,
+    points,
     open,
     high,
     low,
