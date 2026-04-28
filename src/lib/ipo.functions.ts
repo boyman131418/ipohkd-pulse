@@ -233,3 +233,144 @@ export const getIPOData = createServerFn({ method: "GET" }).handler(async () => 
     return { listed: [], upcoming: [], fetchedAt: Date.now(), error: String(err) };
   }
 });
+
+// === First-day intraday chart + volatility (via Yahoo Finance) ===
+export type FirstDayPoint = { t: number; price: number };
+export type FirstDayChart = {
+  code: string;
+  points: FirstDayPoint[];
+  open: number | null;
+  high: number | null;
+  low: number | null;
+  close: number | null;
+  rangePct: number | null; // 波幅 = (high-low)/low * 100
+  listingDate: string | null;
+  error?: string;
+};
+
+const firstDayCache = new Map<string, { data: FirstDayChart; at: number }>();
+const FIRSTDAY_TTL = 60 * 60 * 1000;
+
+async function fetchYahooFirstDay(code: string, listingDateISO: string): Promise<FirstDayChart> {
+  // listingDateISO format YYYY/MM/DD
+  const symbol = `${parseInt(code, 10)}.HK`;
+  // HK trading: 09:30 - 16:00 HKT (UTC+8). build period in UTC seconds.
+  const [y, m, d] = listingDateISO.split("/").map((s) => parseInt(s, 10));
+  // 00:30 UTC = 08:30 HKT (pre-open) → 08:30 UTC = 16:30 HKT (post-close)
+  const dayStart = Date.UTC(y, m - 1, d, 0, 30) / 1000;
+  const dayEnd = Date.UTC(y, m - 1, d, 8, 30) / 1000;
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=5m&period1=${dayStart}&period2=${dayEnd}`;
+  const res = await fetch(url, {
+    headers: { "User-Agent": "Mozilla/5.0", Accept: "application/json" },
+  });
+  if (!res.ok) throw new Error(`Yahoo HTTP ${res.status}`);
+  const json = (await res.json()) as any;
+  const result = json?.chart?.result?.[0];
+  if (!result) {
+    // fallback to range=5d if exact period returns empty
+    const url2 = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=5m&range=5d`;
+    const r2 = await fetch(url2, { headers: { "User-Agent": "Mozilla/5.0" } });
+    const j2 = (await r2.json()) as any;
+    const r = j2?.chart?.result?.[0];
+    if (!r) throw new Error("No data from Yahoo");
+    return parseYahooResult(code, listingDateISO, r);
+  }
+  return parseYahooResult(code, listingDateISO, result);
+}
+
+function parseYahooResult(code: string, listingDateISO: string, result: any): FirstDayChart {
+  const ts: number[] = result.timestamp || [];
+  const quotes = result.indicators?.quote?.[0] || {};
+  const closes: (number | null)[] = quotes.close || [];
+  const highs: (number | null)[] = quotes.high || [];
+  const lows: (number | null)[] = quotes.low || [];
+
+  // filter to listing date in HKT
+  const [y, m, d] = listingDateISO.split("/").map((s) => parseInt(s, 10));
+  const dayStartUTC = Date.UTC(y, m - 1, d, 1, 0); // 09:00 HKT
+  const dayEndUTC = Date.UTC(y, m - 1, d, 8, 30); // 16:30 HKT
+  const points: FirstDayPoint[] = [];
+  let high: number | null = null;
+  let low: number | null = null;
+  let open: number | null = null;
+  let close: number | null = null;
+  for (let i = 0; i < ts.length; i++) {
+    const tMs = ts[i] * 1000;
+    if (tMs < dayStartUTC || tMs > dayEndUTC) continue;
+    const c = closes[i];
+    const h = highs[i];
+    const l = lows[i];
+    if (c == null) continue;
+    if (open == null) open = c;
+    close = c;
+    if (h != null) high = high == null ? h : Math.max(high, h);
+    if (l != null) low = low == null ? l : Math.min(low, l);
+    points.push({ t: ts[i], price: c });
+  }
+  // limit to first 1 hour from open (12 x 5min points)
+  const firstHour = points.slice(0, 12);
+  const rangePct =
+    high != null && low != null && low > 0 ? +((high - low) / low * 100).toFixed(2) : null;
+  return {
+    code,
+    points: firstHour.length ? firstHour : points,
+    open,
+    high,
+    low,
+    close,
+    rangePct,
+    listingDate: listingDateISO,
+  };
+}
+
+export const getFirstDayChart = createServerFn({ method: "GET" })
+  .inputValidator((d: { code: string }) => d)
+  .handler(async ({ data }) => {
+    const code = data.code.replace(/\D/g, "").padStart(5, "0");
+    const cached = firstDayCache.get(code);
+    if (cached && Date.now() - cached.at < FIRSTDAY_TTL) return cached.data;
+    try {
+      // find listing date from cached IPO data
+      let listingDate: string | null = null;
+      if (cache) {
+        const found = cache.listed.find((r) => r.code.padStart(5, "0") === code);
+        if (found) listingDate = found.listingDate;
+      }
+      if (!listingDate) {
+        // fetch fresh
+        const listed = await fetchListed();
+        const found = listed.find((r) => r.code.padStart(5, "0") === code);
+        if (!found) {
+          const empty: FirstDayChart = {
+            code,
+            points: [],
+            open: null,
+            high: null,
+            low: null,
+            close: null,
+            rangePct: null,
+            listingDate: null,
+            error: "找不到該股票上市日期",
+          };
+          return empty;
+        }
+        listingDate = found.listingDate;
+      }
+      const result = await fetchYahooFirstDay(code, listingDate);
+      firstDayCache.set(code, { data: result, at: Date.now() });
+      return result;
+    } catch (err) {
+      console.error("first day chart error:", err);
+      return {
+        code,
+        points: [],
+        open: null,
+        high: null,
+        low: null,
+        close: null,
+        rangePct: null,
+        listingDate: null,
+        error: String(err),
+      } as FirstDayChart;
+    }
+  });
