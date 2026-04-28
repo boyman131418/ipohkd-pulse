@@ -127,6 +127,22 @@ function IPOPage() {
     window.setTimeout(() => setJustLoaded(null), 2500);
   }, []);
 
+  const jumpToChart = useCallback((rawCode: string) => {
+    const c = rawCode.replace(/\D/g, "").padStart(5, "0");
+    if (!c) return;
+    setLookupCode(c);
+    setLookupSubmitted(c);
+    setSubmitTick((t) => t + 1);
+    if (typeof window !== "undefined") {
+      window.requestAnimationFrame(() => {
+        document.getElementById("first-day-chart")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      });
+    }
+  }, []);
+
   const filteredListed = useMemo(() => {
     let rows = [...listed];
     const q = query.trim().toLowerCase();
@@ -255,7 +271,7 @@ function IPOPage() {
         </section>
 
         {/* Stock Lookup — first day 1-hour chart */}
-        <Card>
+        <Card id="first-day-chart">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <LineIcon className="h-4 w-4" style={{ color: "var(--primary)" }} />
@@ -379,7 +395,14 @@ function IPOPage() {
                     {filteredListed.map((r) => (
                       <TableRow key={r.code}>
                         <TableCell className="font-mono font-semibold">
-                          {r.code}
+                          <button
+                            type="button"
+                            onClick={() => jumpToChart(r.code)}
+                            className="text-[color:var(--primary)] hover:underline focus:outline-none focus:underline"
+                            title="查看首日全日走勢"
+                          >
+                            {r.code}
+                          </button>
                         </TableCell>
                         <TableCell className="font-medium">{r.name}</TableCell>
                         <TableCell className="text-muted-foreground text-sm">
