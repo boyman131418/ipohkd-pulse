@@ -382,7 +382,10 @@ export const getFirstDayRanges = createServerFn({ method: "GET" })
     const codes = data.codes
       .map((c) => c.replace(/\D/g, "").padStart(5, "0"))
       .slice(0, 60);
-    const out: Record<string, number | null> = {};
+    const out: Record<
+      string,
+      { rangePct: number | null; open: number | null; close: number | null; openClosePct: number | null }
+    > = {};
     if (!cache) {
       try {
         const listed = await fetchListed();
@@ -400,23 +403,36 @@ export const getFirstDayRanges = createServerFn({ method: "GET" })
         if (!code) break;
         const cached = firstDayCache.get(code);
         if (cached && Date.now() - cached.at < FIRSTDAY_TTL) {
-          out[code] = cached.data.rangePct;
+          out[code] = toEntry(cached.data);
           continue;
         }
         const listingDate = map.get(code);
         if (!listingDate) {
-          out[code] = null;
+          out[code] = { rangePct: null, open: null, close: null, openClosePct: null };
           continue;
         }
         try {
           const r = await fetchYahooFirstDay(code, listingDate);
           firstDayCache.set(code, { data: r, at: Date.now() });
-          out[code] = r.rangePct;
+          out[code] = toEntry(r);
         } catch {
-          out[code] = null;
+          out[code] = { rangePct: null, open: null, close: null, openClosePct: null };
         }
       }
     });
     await Promise.all(workers);
     return { ranges: out, fetchedAt: Date.now() };
   });
+
+function toEntry(d: FirstDayChart) {
+  const openClosePct =
+    d.open != null && d.close != null && d.open !== 0
+      ? +(((d.close - d.open) / d.open) * 100).toFixed(2)
+      : null;
+  return {
+    rangePct: d.rangePct,
+    open: d.open,
+    close: d.close,
+    openClosePct,
+  };
+}

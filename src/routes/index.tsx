@@ -395,7 +395,7 @@ function IPOPage() {
                       <TableHead className="text-right">發行價</TableHead>
                       <TableHead className="text-right">現價</TableHead>
                       <TableHead className="text-right">首日升跌</TableHead>
-                      <TableHead className="text-right">首日波幅</TableHead>
+                      <TableHead className="text-right">首日升跌(開→收)</TableHead>
                       <TableHead className="text-right">累積升跌</TableHead>
                       <TableHead className="text-right">每手</TableHead>
                       <TableHead className="text-right">集資額</TableHead>
@@ -431,9 +431,8 @@ function IPOPage() {
                           <PctCell value={r.firstDayChangePct} />
                         </TableCell>
                         <TableCell className="text-right">
-                          <RangeCell
-                            value={ranges[r.code.padStart(5, "0")]}
-                            direction={r.firstDayChangePct}
+                          <OpenCloseCell
+                            entry={ranges[r.code.padStart(5, "0")]}
                             loading={rangesQuery.isLoading}
                           />
                         </TableCell>
@@ -627,6 +626,43 @@ function RangeCell({
   );
 }
 
+type RangeEntry = {
+  rangePct: number | null;
+  open: number | null;
+  close: number | null;
+  openClosePct: number | null;
+};
+
+function OpenCloseCell({
+  entry,
+  loading,
+}: {
+  entry: RangeEntry | undefined;
+  loading: boolean;
+}) {
+  if (loading && !entry)
+    return <span className="text-muted-foreground text-xs">…</span>;
+  const pct = entry?.openClosePct;
+  if (pct == null) return <span className="text-muted-foreground">—</span>;
+  const isUp = pct >= 0;
+  const color = isUp ? "#16a34a" : "#dc2626";
+  return (
+    <span
+      className="inline-flex items-center justify-end gap-1 font-mono text-sm"
+      style={{ color }}
+      title={
+        entry?.open != null && entry?.close != null
+          ? `開 ${entry.open.toFixed(3)} → 收 ${entry.close.toFixed(3)}`
+          : undefined
+      }
+    >
+      {isUp ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+      {isUp ? "+" : ""}
+      {pct.toFixed(2)}%
+    </span>
+  );
+}
+
 function FirstDayChartCard({
   code,
   fallbackCodes = [],
@@ -738,12 +774,17 @@ function FirstDayChartBody({ d }: { d: FirstDayChart }) {
     { label: "最低", value: d.low != null ? d.low.toFixed(3) : "—" },
     { label: "收盤", value: d.close != null ? d.close.toFixed(3) : "—" },
     {
-      label: "首日波幅",
-      value:
-        d.rangePct != null
-          ? `${d.rangePct.toFixed(2)}% (高-低)/低`
-          : "—",
-      highlight: true,
+      label: "首日升跌（開→收）",
+      value: (() => {
+        if (d.open == null || d.close == null || d.open === 0) return "—";
+        const pct = ((d.close - d.open) / d.open) * 100;
+        return `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`;
+      })(),
+      color: (() => {
+        if (d.open == null || d.close == null || d.open === 0) return undefined;
+        return d.close >= d.open ? "var(--color-success)" : "var(--color-danger)";
+      })(),
+      highlight: false,
     },
     {
       label: "現價",
