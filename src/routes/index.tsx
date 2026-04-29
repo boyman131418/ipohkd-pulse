@@ -731,13 +731,18 @@ function FirstDayChartBody({ d }: { d: FirstDayChart }) {
     highlight?: boolean;
     color?: string;
   }[] = [
+    { label: "股票名稱", value: meta?.name ?? "—" },
     { label: "上市日", value: d.listingDate ?? "—" },
     { label: "開盤", value: d.open != null ? d.open.toFixed(3) : "—" },
     { label: "最高", value: d.high != null ? d.high.toFixed(3) : "—" },
     { label: "最低", value: d.low != null ? d.low.toFixed(3) : "—" },
+    { label: "收盤", value: d.close != null ? d.close.toFixed(3) : "—" },
     {
       label: "首日波幅",
-      value: d.rangePct != null ? `${d.rangePct.toFixed(2)}%` : "—",
+      value:
+        d.rangePct != null
+          ? `${d.rangePct.toFixed(2)}% (高-低)/低`
+          : "—",
       highlight: true,
     },
     {
@@ -755,7 +760,7 @@ function FirstDayChartBody({ d }: { d: FirstDayChart }) {
   ];
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 text-sm">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-9 gap-2 text-sm">
         {stats.map((s) => (
           <div key={s.label} className="rounded-lg border border-border/60 p-2">
             <p className="text-[11px] text-muted-foreground">{s.label}</p>
