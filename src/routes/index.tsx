@@ -84,6 +84,43 @@ function PctCell({ value }: { value: number | null }) {
 
 type SortKey = "listingDate" | "firstDay" | "cumulative" | "minSub" | "marginOversub" | "code";
 
+type RangeEntry = {
+  rangePct: number | null;
+  open: number | null;
+  close: number | null;
+  openClosePct: number | null;
+};
+
+function OpenCloseCell({
+  entry,
+  loading,
+}: {
+  entry: RangeEntry | undefined;
+  loading: boolean;
+}) {
+  if (loading && !entry)
+    return <span className="text-muted-foreground text-xs">…</span>;
+  const pct = entry?.openClosePct;
+  if (pct == null) return <span className="text-muted-foreground">—</span>;
+  const isUp = pct >= 0;
+  const color = isUp ? "#16a34a" : "#dc2626";
+  return (
+    <span
+      className="inline-flex items-center justify-end gap-1 font-mono text-sm"
+      style={{ color }}
+      title={
+        entry?.open != null && entry?.close != null
+          ? `開 ${entry.open.toFixed(3)} → 收 ${entry.close.toFixed(3)}`
+          : undefined
+      }
+    >
+      {isUp ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+      {isUp ? "+" : ""}
+      {pct.toFixed(2)}%
+    </span>
+  );
+}
+
 function IPOPage() {
   const { data } = useSuspenseQuery(ipoQuery);
   const listed = data.listed;
