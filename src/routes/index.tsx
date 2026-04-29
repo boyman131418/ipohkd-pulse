@@ -435,7 +435,6 @@ function IPOPage() {
                       <TableHead className="text-right">首日升跌(開→收)</TableHead>
                       <TableHead className="text-right">累積升跌</TableHead>
                       <TableHead className="text-right">每手</TableHead>
-                      <TableHead className="text-right">集資額</TableHead>
                       <TableHead className="text-right">孖展超購</TableHead>
                       <TableHead className="text-right">穩抽手數</TableHead>
                       <TableHead className="text-right">入場費 (HKD)</TableHead>
@@ -480,9 +479,6 @@ function IPOPage() {
                           {fmt(r.lotSize, 0)}
                         </TableCell>
                         <TableCell className="text-right font-mono text-sm">
-                          {r.marketCap ?? "—"}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-sm">
                           {r.marginOversubscription != null
                             ? `${r.marginOversubscription.toFixed(2)}x`
                             : "—"}
@@ -499,7 +495,7 @@ function IPOPage() {
                     ))}
                     {filteredListed.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={13} className="text-center py-12 text-muted-foreground">
+                        <TableCell colSpan={12} className="text-center py-12 text-muted-foreground">
                           冇符合條件嘅 IPO
                         </TableCell>
                       </TableRow>
