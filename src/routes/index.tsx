@@ -395,7 +395,7 @@ function IPOPage() {
                       <TableHead className="text-right">發行價</TableHead>
                       <TableHead className="text-right">現價</TableHead>
                       <TableHead className="text-right">首日升跌</TableHead>
-                      <TableHead className="text-right">首日波幅</TableHead>
+                      <TableHead className="text-right">首日升跌(開→收)</TableHead>
                       <TableHead className="text-right">累積升跌</TableHead>
                       <TableHead className="text-right">每手</TableHead>
                       <TableHead className="text-right">集資額</TableHead>
