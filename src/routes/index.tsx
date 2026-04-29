@@ -738,12 +738,17 @@ function FirstDayChartBody({ d }: { d: FirstDayChart }) {
     { label: "最低", value: d.low != null ? d.low.toFixed(3) : "—" },
     { label: "收盤", value: d.close != null ? d.close.toFixed(3) : "—" },
     {
-      label: "首日波幅",
-      value:
-        d.rangePct != null
-          ? `${d.rangePct.toFixed(2)}% (高-低)/低`
-          : "—",
-      highlight: true,
+      label: "首日升跌（開→收）",
+      value: (() => {
+        if (d.open == null || d.close == null || d.open === 0) return "—";
+        const pct = ((d.close - d.open) / d.open) * 100;
+        return `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`;
+      })(),
+      color: (() => {
+        if (d.open == null || d.close == null || d.open === 0) return undefined;
+        return d.close >= d.open ? "var(--color-success)" : "var(--color-danger)";
+      })(),
+      highlight: false,
     },
     {
       label: "現價",
