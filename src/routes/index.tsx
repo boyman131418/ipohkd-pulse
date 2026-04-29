@@ -431,9 +431,8 @@ function IPOPage() {
                           <PctCell value={r.firstDayChangePct} />
                         </TableCell>
                         <TableCell className="text-right">
-                          <RangeCell
-                            value={ranges[r.code.padStart(5, "0")]}
-                            direction={r.firstDayChangePct}
+                          <OpenCloseCell
+                            entry={ranges[r.code.padStart(5, "0")]}
                             loading={rangesQuery.isLoading}
                           />
                         </TableCell>
