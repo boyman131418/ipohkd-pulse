@@ -482,8 +482,36 @@ function DualMarketPage() {
                 <TableHeader className="sticky top-0 bg-background z-10">
                   <TableRow>
                     <TableHead>公司</TableHead>
-                    <TableHead>行業</TableHead>
-                    <TableHead>主市場</TableHead>
+                    <TableHead>
+                      <Select value={sectorFilter} onValueChange={setSectorFilter}>
+                        <SelectTrigger className="h-8 w-[120px]">
+                          <SelectValue placeholder="行業" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__all">全部行業</SelectItem>
+                          {sectorOptions.map((s) => (
+                            <SelectItem key={s} value={s}>
+                              {s}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableHead>
+                    <TableHead>
+                      <Select value={marketFilter} onValueChange={setMarketFilter}>
+                        <SelectTrigger className="h-8 w-[120px]">
+                          <SelectValue placeholder="主市場" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__all">全部主市場</SelectItem>
+                          {marketOptions.map((m) => (
+                            <SelectItem key={m} value={m}>
+                              {m}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableHead>
                     <TableHead>主市場代碼</TableHead>
                     <TableHead>港股代碼</TableHead>
                     <TableHead className="text-right">主市場市值 (USD)</TableHead>
@@ -570,7 +598,7 @@ function DualMarketPage() {
 
         {data && (
           <>
-            <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <section ref={chartRef} className="grid grid-cols-1 sm:grid-cols-3 gap-4 scroll-mt-20">
               <StatCard
                 label={`主市場 ${data.primary.symbol}　市值`}
                 value={
