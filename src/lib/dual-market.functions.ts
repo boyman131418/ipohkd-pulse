@@ -11,6 +11,8 @@ export type SymbolSeries = {
   high: number | null;
   low: number | null;
   changePct: number | null;
+  marketCap: number | null;
+  sharesOutstanding: number | null;
   error?: string;
 };
 
@@ -78,6 +80,8 @@ async function fetchYahoo(symbol: string, rangeKey: string): Promise<SymbolSerie
       high,
       low,
       changePct,
+      marketCap: null,
+      sharesOutstanding: null,
     };
   } catch (err) {
     return {
@@ -90,6 +94,8 @@ async function fetchYahoo(symbol: string, rangeKey: string): Promise<SymbolSerie
       high: null,
       low: null,
       changePct: null,
+      marketCap: null,
+      sharesOutstanding: null,
       error: String(err),
     };
   }
@@ -127,6 +133,28 @@ async function fetchFx(from: string, to: string): Promise<number | null> {
   }
 }
 
+async function fetchQuoteMeta(
+  symbol: string,
+): Promise<{ marketCap: number | null; sharesOutstanding: number | null }> {
+  try {
+    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}`;
+    const res = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0", Accept: "application/json" },
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = (await res.json()) as any;
+    const q = json?.quoteResponse?.result?.[0] ?? null;
+    if (!q) return { marketCap: null, sharesOutstanding: null };
+    return {
+      marketCap: typeof q.marketCap === "number" ? q.marketCap : null,
+      sharesOutstanding:
+        typeof q.sharesOutstanding === "number" ? q.sharesOutstanding : null,
+    };
+  } catch {
+    return { marketCap: null, sharesOutstanding: null };
+  }
+}
+
 export const getDualMarketData = createServerFn({ method: "GET" })
   .inputValidator(
     (d: { primary: string; secondary: string; range?: string }) => d,
@@ -135,10 +163,16 @@ export const getDualMarketData = createServerFn({ method: "GET" })
     const primarySymbol = normalizePrimarySymbol(data.primary);
     const secondarySymbol = normalizeHKSymbol(data.secondary);
     const range = data.range ?? "6mo";
-    const [primary, secondary] = await Promise.all([
+    const [primary, secondary, primaryMeta, secondaryMeta] = await Promise.all([
       fetchYahoo(primarySymbol, range),
       fetchYahoo(secondarySymbol, range),
+      fetchQuoteMeta(primarySymbol),
+      fetchQuoteMeta(secondarySymbol),
     ]);
+    primary.marketCap = primaryMeta.marketCap;
+    primary.sharesOutstanding = primaryMeta.sharesOutstanding;
+    secondary.marketCap = secondaryMeta.marketCap;
+    secondary.sharesOutstanding = secondaryMeta.sharesOutstanding;
     let fxRate: number | null = null;
     if (primary.currency && primary.currency !== "HKD") {
       fxRate = await fetchFx(primary.currency, "HKD");
