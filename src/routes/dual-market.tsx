@@ -465,6 +465,8 @@ function DualMarketPage() {
                     <TableHead>主市場</TableHead>
                     <TableHead>主市場代碼</TableHead>
                     <TableHead>港股代碼</TableHead>
+                    <TableHead className="text-right">主市場市值 (USD)</TableHead>
+                    <TableHead className="text-right">港股市值 (USD)</TableHead>
                     <TableHead className="text-right">操作</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -473,6 +475,7 @@ function DualMarketPage() {
                     const active =
                       submitted.primary === l.primary &&
                       submitted.secondary === l.secondary;
+                    const mc = mcMap.get(`${l.primary}|${l.secondary}`);
                     return (
                       <TableRow
                         key={`${l.primary}-${l.secondary}`}
@@ -486,6 +489,20 @@ function DualMarketPage() {
                         <TableCell className="text-xs">{l.primaryMarket}</TableCell>
                         <TableCell className="font-mono text-xs">{l.primary}</TableCell>
                         <TableCell className="font-mono text-xs">{l.secondary}</TableCell>
+                        <TableCell className="text-right font-mono text-xs">
+                          {mc?.primary != null
+                            ? fmtBig(mc.primary, "USD")
+                            : listingsMcQuery.isLoading
+                              ? "…"
+                              : "—"}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-xs">
+                          {mc?.secondary != null
+                            ? fmtBig(mc.secondary, "USD")
+                            : listingsMcQuery.isLoading
+                              ? "…"
+                              : "—"}
+                        </TableCell>
                         <TableCell className="text-right">
                           <Button
                             size="sm"
@@ -505,7 +522,7 @@ function DualMarketPage() {
                   {filteredListings.length === 0 && (
                     <TableRow>
                       <TableCell
-                        colSpan={6}
+                        colSpan={8}
                         className="text-center text-muted-foreground py-8"
                       >
                         找不到符合條件的公司
