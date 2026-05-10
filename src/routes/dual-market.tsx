@@ -149,6 +149,15 @@ function PctBadge({ value }: { value: number | null }) {
   );
 }
 
+function fmtBig(n: number | null, suffix = ""): string {
+  if (n == null || !isFinite(n)) return "—";
+  const abs = Math.abs(n);
+  if (abs >= 1e12) return `${(n / 1e12).toFixed(2)} 萬億${suffix}`;
+  if (abs >= 1e8) return `${(n / 1e8).toFixed(2)} 億${suffix}`;
+  if (abs >= 1e4) return `${(n / 1e4).toFixed(2)} 萬${suffix}`;
+  return `${n.toFixed(0)} ${suffix}`.trim();
+}
+
 function buildNormalizedSeries(
   primary: SymbolSeries,
   secondary: SymbolSeries,
@@ -242,19 +251,25 @@ function DualMarketPage() {
     if (!data) return null;
     const p = data.primary;
     const s = data.secondary;
-    const primaryUsd =
-      p.close != null && data.primaryToUsd != null
-        ? +(p.close * data.primaryToUsd).toFixed(3)
+    const primaryMcUsd =
+      p.marketCap != null && data.primaryToUsd != null
+        ? p.marketCap * data.primaryToUsd
         : null;
-    const secondaryUsd =
-      s.close != null && data.secondaryToUsd != null
-        ? +(s.close * data.secondaryToUsd).toFixed(3)
+    const secondaryMcUsd =
+      s.marketCap != null && data.secondaryToUsd != null
+        ? s.marketCap * data.secondaryToUsd
         : null;
     const premiumPct =
-      primaryUsd != null && secondaryUsd != null && primaryUsd !== 0
-        ? +(((secondaryUsd - primaryUsd) / primaryUsd) * 100).toFixed(2)
+      primaryMcUsd != null && secondaryMcUsd != null && primaryMcUsd !== 0
+        ? +(((secondaryMcUsd - primaryMcUsd) / primaryMcUsd) * 100).toFixed(2)
         : null;
-    return { primaryUsd, secondaryUsd, premiumPct };
+    return {
+      primaryMc: p.marketCap,
+      secondaryMc: s.marketCap,
+      primaryMcUsd,
+      secondaryMcUsd,
+      premiumPct,
+    };
   }, [data]);
 
   function submit(e?: React.FormEvent) {
@@ -485,41 +500,33 @@ function DualMarketPage() {
           <>
             <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <StatCard
-                label={`主市場 ${data.primary.symbol}`}
+                label={`主市場 ${data.primary.symbol}　市值`}
                 value={
                   <div>
                     <span className="font-mono">
-                      {data.primary.close != null
-                        ? `${data.primary.close.toFixed(2)} ${data.primary.currency ?? ""}`
-                        : "—"}
+                      {fmtBig(stats?.primaryMc ?? null, data.primary.currency ?? "")}
                     </span>
                     <div className="text-xs text-muted-foreground font-mono mt-1">
-                      {stats?.primaryUsd != null
-                        ? `≈ ${stats.primaryUsd.toFixed(3)} USD`
-                        : "—"}
+                      ≈ {fmtBig(stats?.primaryMcUsd ?? null, "USD")}
                     </div>
                   </div>
                 }
               />
               <StatCard
-                label={`次市場 ${data.secondary.symbol}`}
+                label={`次市場 ${data.secondary.symbol}　市值`}
                 value={
                   <div>
                     <span className="font-mono">
-                      {data.secondary.close != null
-                        ? `${data.secondary.close.toFixed(3)} ${data.secondary.currency ?? "HKD"}`
-                        : "—"}
+                      {fmtBig(stats?.secondaryMc ?? null, data.secondary.currency ?? "HKD")}
                     </span>
                     <div className="text-xs text-muted-foreground font-mono mt-1">
-                      {stats?.secondaryUsd != null
-                        ? `≈ ${stats.secondaryUsd.toFixed(3)} USD`
-                        : "—"}
+                      ≈ {fmtBig(stats?.secondaryMcUsd ?? null, "USD")}
                     </div>
                   </div>
                 }
               />
               <StatCard
-                label="港股溢價／折讓（USD 結算）"
+                label="港股溢價／折讓（USD 市值對比）"
                 value={<PctBadge value={stats?.premiumPct ?? null} />}
                 tone={
                   stats?.premiumPct == null
