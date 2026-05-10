@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery, queryOptions, useQuery, useIsFetching } from "@tanstack/react-query";
 import { useMemo, useState, useEffect, useCallback } from "react";
 import {
@@ -10,7 +10,7 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
-import { TrendingUp, TrendingDown, Search, Calendar, Clock, LineChart as LineIcon, Activity } from "lucide-react";
+import { TrendingUp, TrendingDown, Search, Calendar, Clock, LineChart as LineIcon, Activity, GitCompare } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -241,7 +241,7 @@ function IPOPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b border-border/60 backdrop-blur-sm sticky top-0 z-10 bg-background/80">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 py-4 flex items-center justify-between">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div
               className="h-10 w-10 rounded-xl flex items-center justify-center font-black text-xl"
@@ -254,10 +254,23 @@ function IPOPage() {
               <p className="text-xs text-muted-foreground">香港新股情報站</p>
             </div>
           </div>
-          <div className="text-xs text-muted-foreground hidden sm:block">
-            <Clock className="inline h-3 w-3 mr-1" />
-            更新: {fmtFetchedAt(data.fetchedAt)}
-          </div>
+          <nav className="flex items-center gap-2">
+            <Link to="/">
+              <Button variant="default" size="sm">
+                IPO 市場
+              </Button>
+            </Link>
+            <Link to="/dual-market">
+              <Button variant="ghost" size="sm">
+                <GitCompare className="h-4 w-4" />
+                主次市場
+              </Button>
+            </Link>
+            <div className="text-xs text-muted-foreground hidden lg:block ml-2">
+              <Clock className="inline h-3 w-3 mr-1" />
+              {fmtFetchedAt(data.fetchedAt)}
+            </div>
+          </nav>
         </div>
       </header>
 
