@@ -12,6 +12,7 @@ import {
   Legend,
 } from "recharts";
 import { Search, TrendingUp, TrendingDown, Clock, GitCompare } from "lucide-react";
+import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -177,6 +178,7 @@ function DualMarketPage() {
   const [listingQuery, setListingQuery] = useState("");
   const [sectorFilter, setSectorFilter] = useState<string>("__all");
   const [marketFilter, setMarketFilter] = useState<string>("__all");
+  const [premiumSort, setPremiumSort] = useState<"none" | "asc" | "desc">("none");
   const chartRef = useRef<HTMLDivElement | null>(null);
 
   const listingsQuery = useQuery({
@@ -290,7 +292,7 @@ function DualMarketPage() {
 
   const filteredListings = useMemo(() => {
     const q = listingQuery.trim().toLowerCase();
-    return allListings.filter((l) => {
+    const filtered = allListings.filter((l) => {
       if (sectorFilter !== "__all" && (l.sector ?? "") !== sectorFilter) return false;
       if (marketFilter !== "__all" && l.primaryMarket !== marketFilter) return false;
       if (!q) return true;
@@ -302,7 +304,21 @@ function DualMarketPage() {
         l.primaryMarket.toLowerCase().includes(q)
       );
     });
-  }, [listingQuery, sectorFilter, marketFilter, allListings]);
+    if (premiumSort === "none") return filtered;
+    const getPremium = (l: DualListing) => {
+      const mc = mcMap.get(`${l.primary}|${l.secondary}`);
+      if (mc?.primary == null || mc?.secondary == null || mc.primary === 0) return null;
+      return ((mc.secondary - mc.primary) / mc.primary) * 100;
+    };
+    return [...filtered].sort((a, b) => {
+      const pa = getPremium(a);
+      const pb = getPremium(b);
+      if (pa == null && pb == null) return 0;
+      if (pa == null) return 1;
+      if (pb == null) return -1;
+      return premiumSort === "asc" ? pa - pb : pb - pa;
+    });
+  }, [listingQuery, sectorFilter, marketFilter, allListings, premiumSort, mcMap]);
 
   const sectorOptions = useMemo(
     () => Array.from(new Set(allListings.map((l) => l.sector ?? "").filter(Boolean))).sort(),
@@ -486,7 +502,26 @@ function DualMarketPage() {
                     <TableHead>港股代碼</TableHead>
                     <TableHead className="text-right">主市場市值 (USD)</TableHead>
                     <TableHead className="text-right">港股市值 (USD)</TableHead>
-                    <TableHead className="text-right">折讓／溢價</TableHead>
+                    <TableHead className="text-right">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPremiumSort((s) =>
+                            s === "none" ? "desc" : s === "desc" ? "asc" : "none",
+                          )
+                        }
+                        className="inline-flex items-center gap-1 hover:text-foreground"
+                      >
+                        折讓／溢價
+                        {premiumSort === "asc" ? (
+                          <ArrowUp className="h-3 w-3" />
+                        ) : premiumSort === "desc" ? (
+                          <ArrowDown className="h-3 w-3" />
+                        ) : (
+                          <ArrowUpDown className="h-3 w-3 opacity-50" />
+                        )}
+                      </button>
+                    </TableHead>
                     <TableHead className="text-right">操作</TableHead>
                   </TableRow>
                 </TableHeader>
