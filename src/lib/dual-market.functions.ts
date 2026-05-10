@@ -335,3 +335,128 @@ export const getListingsMarketCaps = createServerFn({ method: "GET" })
     });
     return { rows, fetchedAt: Date.now() };
   });
+
+// ============================================================
+// 主次市場對照表（自動爬取 A+H + 手動 ADR/KS）
+// ============================================================
+
+export type DualListingItem = {
+  name: string;
+  primary: string;
+  primaryMarket: string;
+  secondary: string;
+  sector?: string;
+};
+
+// 手動維護：非 A+H 的同公司雙重上市（中概股 ADR、韓股等）
+const MANUAL_LISTINGS: DualListingItem[] = [
+  { name: "阿里巴巴", primary: "BABA", primaryMarket: "NYSE", secondary: "9988", sector: "互聯網" },
+  { name: "京東", primary: "JD", primaryMarket: "NASDAQ", secondary: "9618", sector: "電商" },
+  { name: "百度", primary: "BIDU", primaryMarket: "NASDAQ", secondary: "9888", sector: "互聯網" },
+  { name: "網易", primary: "NTES", primaryMarket: "NASDAQ", secondary: "9999", sector: "遊戲" },
+  { name: "嗶哩嗶哩", primary: "BILI", primaryMarket: "NASDAQ", secondary: "9626", sector: "媒體" },
+  { name: "新東方", primary: "EDU", primaryMarket: "NYSE", secondary: "9901", sector: "教育" },
+  { name: "百勝中國", primary: "YUMC", primaryMarket: "NYSE", secondary: "9987", sector: "餐飲" },
+  { name: "理想汽車", primary: "LI", primaryMarket: "NASDAQ", secondary: "2015", sector: "新能源車" },
+  { name: "小鵬汽車", primary: "XPEV", primaryMarket: "NYSE", secondary: "9868", sector: "新能源車" },
+  { name: "蔚來", primary: "NIO", primaryMarket: "NYSE", secondary: "9866", sector: "新能源車" },
+  { name: "攜程", primary: "TCOM", primaryMarket: "NASDAQ", secondary: "9961", sector: "旅遊" },
+  { name: "中通快遞", primary: "ZTO", primaryMarket: "NYSE", secondary: "2057", sector: "物流" },
+  { name: "微博", primary: "WB", primaryMarket: "NASDAQ", secondary: "9898", sector: "社交" },
+  { name: "知乎", primary: "ZH", primaryMarket: "NYSE", secondary: "2390", sector: "互聯網" },
+  { name: "陸金所", primary: "LU", primaryMarket: "NYSE", secondary: "6623", sector: "金融科技" },
+  { name: "金山雲", primary: "KC", primaryMarket: "NASDAQ", secondary: "3896", sector: "雲計算" },
+  { name: "再鼎醫藥", primary: "ZLAB", primaryMarket: "NASDAQ", secondary: "9688", sector: "生物科技" },
+  { name: "名創優品", primary: "MNSO", primaryMarket: "NYSE", secondary: "9896", sector: "零售" },
+  { name: "南方海力士 (SK Hynix)", primary: "000660.KS", primaryMarket: "KRX", secondary: "7709", sector: "半導體" },
+];
+
+// A+H 行業分類（由 H 股代碼或 A 股代碼補充）
+const SECTOR_MAP: Record<string, string> = {
+  "1398": "銀行", "0939": "銀行", "3988": "銀行", "3968": "銀行",
+  "1288": "銀行", "3328": "銀行", "0998": "銀行", "1658": "銀行",
+  "3618": "銀行", "1988": "銀行", "6818": "銀行", "1216": "銀行",
+  "2318": "保險", "2628": "保險", "1339": "保險", "0966": "保險", "2601": "保險",
+  "0386": "能源", "0857": "能源", "1088": "能源", "0902": "能源", "0916": "能源",
+  "0728": "電訊", "0941": "電訊", "0762": "電訊",
+  "6030": "券商", "6837": "券商", "6886": "券商", "1776": "券商", "3958": "券商",
+  "1211": "新能源車", "2015": "新能源車",
+  "0300": "家電", "6690": "家電",
+  "2359": "醫藥", "1276": "醫藥", "1093": "醫藥", "1099": "醫藥",
+  "3750": "電池",
+  "1766": "基建", "0390": "基建", "1186": "基建", "1800": "基建", "0552": "基建",
+  "1138": "航運", "1919": "航運",
+  "0753": "航空", "0670": "航空", "1055": "航空",
+  "0688": "地產", "1109": "地產", "3380": "地產",
+  "2238": "汽車", "0489": "汽車", "1958": "汽車",
+  "0347": "鋼鐵", "0323": "鋼鐵",
+  "0168": "啤酒",
+};
+
+let listingsCache: { rows: DualListingItem[]; ts: number } | null = null;
+
+async function fetchAHListings(): Promise<DualListingItem[]> {
+  try {
+    const res = await fetch("http://aastock.hk/sc/stocks/market/ah.aspx", {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+        Accept: "text/html",
+      },
+    });
+    if (!res.ok) return [];
+    const html = await res.text();
+    const namePat = /class="ahstock[^"]*"[^>]*>([\s\S]{0,300}?)<\/td>/g;
+    const hPat = /class="hshare[^"]*"[^>]*>[\s\S]{0,400}?symbol=(\d{5})/g;
+    const aPat = /title='(\d{6})\.(SH|SZ)'/g;
+    const names: { pos: number; name: string }[] = [];
+    let m: RegExpExecArray | null;
+    while ((m = namePat.exec(html))) {
+      const text = m[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+      names.push({ pos: m.index, name: text });
+    }
+    const hs: { pos: number; code: string }[] = [];
+    while ((m = hPat.exec(html))) hs.push({ pos: m.index, code: m[1] });
+    const as: { pos: number; code: string; mkt: string }[] = [];
+    while ((m = aPat.exec(html))) as.push({ pos: m.index, code: m[1], mkt: m[2] });
+    const out: DualListingItem[] = [];
+    for (let i = 0; i < names.length; i++) {
+      const start = names[i].pos;
+      const end = i + 1 < names.length ? names[i + 1].pos : html.length;
+      const h = hs.find((x) => x.pos > start && x.pos < end);
+      const a = as.find((x) => x.pos > start && x.pos < end);
+      if (!h || !a) continue;
+      // H code: 5-digit → 4-digit (去除多餘的前置 0)
+      const hk4 = String(parseInt(h.code, 10)).padStart(4, "0");
+      const yahooSuffix = a.mkt === "SH" ? ".SS" : ".SZ";
+      out.push({
+        name: names[i].name,
+        primary: `${a.code}${yahooSuffix}`,
+        primaryMarket: a.mkt === "SH" ? "上交所" : "深交所",
+        secondary: hk4,
+        sector: SECTOR_MAP[hk4],
+      });
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
+export const getDualListings = createServerFn({ method: "GET" }).handler(
+  async () => {
+    if (listingsCache && Date.now() - listingsCache.ts < 24 * 60 * 60 * 1000) {
+      return { rows: listingsCache.rows, fetchedAt: listingsCache.ts };
+    }
+    const ah = await fetchAHListings();
+    // 去重：以 primary+secondary 為 key；手動條目優先（保留行業）
+    const map = new Map<string, DualListingItem>();
+    for (const it of ah) map.set(`${it.primary}|${it.secondary}`, it);
+    for (const it of MANUAL_LISTINGS) map.set(`${it.primary}|${it.secondary}`, it);
+    const rows = Array.from(map.values()).sort((a, b) =>
+      a.name.localeCompare(b.name, "zh-Hant"),
+    );
+    listingsCache = { rows, ts: Date.now() };
+    return { rows, fetchedAt: listingsCache.ts };
+  },
+);
