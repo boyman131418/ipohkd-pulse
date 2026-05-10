@@ -16,6 +16,14 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -56,11 +64,53 @@ const RANGE_OPTIONS = [
   { value: "5y", label: "5 年" },
 ];
 
-const PRESETS: { primary: string; secondary: string; label: string }[] = [
-  { primary: "000660.KS", secondary: "7709", label: "南方海力士 7709 ↔ 000660.KS" },
-  { primary: "AAPL", secondary: "9889", label: "Apple 9889 ↔ AAPL" },
-  { primary: "TSLA", secondary: "9810", label: "Tesla 9810 ↔ TSLA" },
-  { primary: "0941.HK", secondary: "0941", label: "中移動 941（自身對照）" },
+type DualListing = {
+  name: string;
+  primary: string;
+  primaryMarket: string;
+  secondary: string;
+  sector?: string;
+};
+
+const DUAL_LISTINGS: DualListing[] = [
+  // 美股 ADR ↔ 港股
+  { name: "阿里巴巴", primary: "BABA", primaryMarket: "NYSE", secondary: "9988", sector: "互聯網" },
+  { name: "京東", primary: "JD", primaryMarket: "NASDAQ", secondary: "9618", sector: "電商" },
+  { name: "百度", primary: "BIDU", primaryMarket: "NASDAQ", secondary: "9888", sector: "互聯網" },
+  { name: "網易", primary: "NTES", primaryMarket: "NASDAQ", secondary: "9999", sector: "遊戲" },
+  { name: "嗶哩嗶哩", primary: "BILI", primaryMarket: "NASDAQ", secondary: "9626", sector: "媒體" },
+  { name: "新東方", primary: "EDU", primaryMarket: "NYSE", secondary: "9901", sector: "教育" },
+  { name: "百勝中國", primary: "YUMC", primaryMarket: "NYSE", secondary: "9987", sector: "餐飲" },
+  { name: "理想汽車", primary: "LI", primaryMarket: "NASDAQ", secondary: "2015", sector: "新能源車" },
+  { name: "小鵬汽車", primary: "XPEV", primaryMarket: "NYSE", secondary: "9868", sector: "新能源車" },
+  { name: "蔚來", primary: "NIO", primaryMarket: "NYSE", secondary: "9866", sector: "新能源車" },
+  { name: "攜程", primary: "TCOM", primaryMarket: "NASDAQ", secondary: "9961", sector: "旅遊" },
+  { name: "中通快遞", primary: "ZTO", primaryMarket: "NYSE", secondary: "2057", sector: "物流" },
+  { name: "微博", primary: "WB", primaryMarket: "NASDAQ", secondary: "9898", sector: "社交" },
+  { name: "知乎", primary: "ZH", primaryMarket: "NYSE", secondary: "2390", sector: "互聯網" },
+  { name: "陸金所", primary: "LU", primaryMarket: "NYSE", secondary: "6623", sector: "金融科技" },
+  { name: "金山雲", primary: "KC", primaryMarket: "NASDAQ", secondary: "3896", sector: "雲計算" },
+  { name: "再鼎醫藥", primary: "ZLAB", primaryMarket: "NASDAQ", secondary: "9688", sector: "生物科技" },
+  { name: "名創優品", primary: "MNSO", primaryMarket: "NYSE", secondary: "9896", sector: "零售" },
+  // 韓股 ↔ 港股
+  { name: "南方海力士 (SK Hynix)", primary: "000660.KS", primaryMarket: "KRX", secondary: "7709", sector: "半導體" },
+  // A股 ↔ 港股 (A+H)
+  { name: "工商銀行", primary: "601398.SS", primaryMarket: "上交所", secondary: "1398", sector: "銀行" },
+  { name: "建設銀行", primary: "601939.SS", primaryMarket: "上交所", secondary: "0939", sector: "銀行" },
+  { name: "中國銀行", primary: "601988.SS", primaryMarket: "上交所", secondary: "3988", sector: "銀行" },
+  { name: "招商銀行", primary: "600036.SS", primaryMarket: "上交所", secondary: "3968", sector: "銀行" },
+  { name: "中國平安", primary: "601318.SS", primaryMarket: "上交所", secondary: "2318", sector: "保險" },
+  { name: "中國人壽", primary: "601628.SS", primaryMarket: "上交所", secondary: "2628", sector: "保險" },
+  { name: "中國石化", primary: "600028.SS", primaryMarket: "上交所", secondary: "0386", sector: "能源" },
+  { name: "中國石油", primary: "601857.SS", primaryMarket: "上交所", secondary: "0857", sector: "能源" },
+  { name: "中國神華", primary: "601088.SS", primaryMarket: "上交所", secondary: "1088", sector: "能源" },
+  { name: "中信証券", primary: "600030.SS", primaryMarket: "上交所", secondary: "6030", sector: "券商" },
+  { name: "比亞迪", primary: "002594.SZ", primaryMarket: "深交所", secondary: "1211", sector: "新能源車" },
+  { name: "海爾智家", primary: "600690.SS", primaryMarket: "上交所", secondary: "6690", sector: "家電" },
+  { name: "藥明康德", primary: "603259.SS", primaryMarket: "上交所", secondary: "2359", sector: "醫藥" },
+  { name: "恒瑞醫藥", primary: "600276.SS", primaryMarket: "上交所", secondary: "1276", sector: "醫藥" },
+  { name: "寧德時代", primary: "300750.SZ", primaryMarket: "深交所", secondary: "3750", sector: "電池" },
+  { name: "美的集團", primary: "000333.SZ", primaryMarket: "深交所", secondary: "0300", sector: "家電" },
 ];
 
 function fmtTs(ts: number) {
@@ -159,6 +209,7 @@ function DualMarketPage() {
   const [primary, setPrimary] = useState("000660.KS");
   const [secondary, setSecondary] = useState("7709");
   const [range, setRange] = useState("6mo");
+  const [listingQuery, setListingQuery] = useState("");
 
   const [submitted, setSubmitted] = useState({
     primary: "000660.KS",
@@ -214,6 +265,28 @@ function DualMarketPage() {
       range,
     });
   }
+
+  function pickListing(item: DualListing) {
+    setPrimary(item.primary);
+    setSecondary(item.secondary);
+    setSubmitted({ primary: item.primary, secondary: item.secondary, range });
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }
+
+  const filteredListings = useMemo(() => {
+    const q = listingQuery.trim().toLowerCase();
+    if (!q) return DUAL_LISTINGS;
+    return DUAL_LISTINGS.filter(
+      (l) =>
+        l.name.toLowerCase().includes(q) ||
+        l.primary.toLowerCase().includes(q) ||
+        l.secondary.toLowerCase().includes(q) ||
+        (l.sector ?? "").toLowerCase().includes(q) ||
+        l.primaryMarket.toLowerCase().includes(q),
+    );
+  }, [listingQuery]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -326,28 +399,80 @@ function DualMarketPage() {
                 </Button>
               </div>
             </form>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <span className="text-xs text-muted-foreground self-center">
-                範例：
-              </span>
-              {PRESETS.map((p) => (
-                <Button
-                  key={p.label}
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setPrimary(p.primary);
-                    setSecondary(p.secondary);
-                    setSubmitted({
-                      primary: p.primary,
-                      secondary: p.secondary,
-                      range,
-                    });
-                  }}
-                >
-                  {p.label}
-                </Button>
-              ))}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between gap-2 flex-wrap">
+              <span>主次市場對照表（按公司即可對比）</span>
+              <Input
+                value={listingQuery}
+                onChange={(e) => setListingQuery(e.target.value)}
+                placeholder="搜尋公司／代碼／行業…"
+                className="max-w-xs"
+              />
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="max-h-[420px] overflow-auto">
+              <Table>
+                <TableHeader className="sticky top-0 bg-background z-10">
+                  <TableRow>
+                    <TableHead>公司</TableHead>
+                    <TableHead>行業</TableHead>
+                    <TableHead>主市場</TableHead>
+                    <TableHead>主市場代碼</TableHead>
+                    <TableHead>港股代碼</TableHead>
+                    <TableHead className="text-right">操作</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredListings.map((l) => {
+                    const active =
+                      submitted.primary === l.primary &&
+                      submitted.secondary === l.secondary;
+                    return (
+                      <TableRow
+                        key={`${l.primary}-${l.secondary}`}
+                        className={`cursor-pointer ${active ? "bg-muted/60" : ""}`}
+                        onClick={() => pickListing(l)}
+                      >
+                        <TableCell className="font-medium">{l.name}</TableCell>
+                        <TableCell className="text-muted-foreground text-xs">
+                          {l.sector ?? "—"}
+                        </TableCell>
+                        <TableCell className="text-xs">{l.primaryMarket}</TableCell>
+                        <TableCell className="font-mono text-xs">{l.primary}</TableCell>
+                        <TableCell className="font-mono text-xs">{l.secondary}</TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            size="sm"
+                            variant={active ? "default" : "outline"}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              pickListing(l);
+                            }}
+                          >
+                            <GitCompare className="h-3 w-3" />
+                            對比
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {filteredListings.length === 0 && (
+                    <TableRow>
+                      <TableCell
+                        colSpan={6}
+                        className="text-center text-muted-foreground py-8"
+                      >
+                        找不到符合條件的公司
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </div>
           </CardContent>
         </Card>
