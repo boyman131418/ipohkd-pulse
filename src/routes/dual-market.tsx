@@ -16,6 +16,14 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -391,28 +399,80 @@ function DualMarketPage() {
                 </Button>
               </div>
             </form>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <span className="text-xs text-muted-foreground self-center">
-                範例：
-              </span>
-              {PRESETS.map((p) => (
-                <Button
-                  key={p.label}
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setPrimary(p.primary);
-                    setSecondary(p.secondary);
-                    setSubmitted({
-                      primary: p.primary,
-                      secondary: p.secondary,
-                      range,
-                    });
-                  }}
-                >
-                  {p.label}
-                </Button>
-              ))}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between gap-2 flex-wrap">
+              <span>主次市場對照表（按公司即可對比）</span>
+              <Input
+                value={listingQuery}
+                onChange={(e) => setListingQuery(e.target.value)}
+                placeholder="搜尋公司／代碼／行業…"
+                className="max-w-xs"
+              />
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="max-h-[420px] overflow-auto">
+              <Table>
+                <TableHeader className="sticky top-0 bg-background z-10">
+                  <TableRow>
+                    <TableHead>公司</TableHead>
+                    <TableHead>行業</TableHead>
+                    <TableHead>主市場</TableHead>
+                    <TableHead>主市場代碼</TableHead>
+                    <TableHead>港股代碼</TableHead>
+                    <TableHead className="text-right">操作</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredListings.map((l) => {
+                    const active =
+                      submitted.primary === l.primary &&
+                      submitted.secondary === l.secondary;
+                    return (
+                      <TableRow
+                        key={`${l.primary}-${l.secondary}`}
+                        className={`cursor-pointer ${active ? "bg-muted/60" : ""}`}
+                        onClick={() => pickListing(l)}
+                      >
+                        <TableCell className="font-medium">{l.name}</TableCell>
+                        <TableCell className="text-muted-foreground text-xs">
+                          {l.sector ?? "—"}
+                        </TableCell>
+                        <TableCell className="text-xs">{l.primaryMarket}</TableCell>
+                        <TableCell className="font-mono text-xs">{l.primary}</TableCell>
+                        <TableCell className="font-mono text-xs">{l.secondary}</TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            size="sm"
+                            variant={active ? "default" : "outline"}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              pickListing(l);
+                            }}
+                          >
+                            <GitCompare className="h-3 w-3" />
+                            對比
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {filteredListings.length === 0 && (
+                    <TableRow>
+                      <TableCell
+                        colSpan={6}
+                        className="text-center text-muted-foreground py-8"
+                      >
+                        找不到符合條件的公司
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </div>
           </CardContent>
         </Card>
