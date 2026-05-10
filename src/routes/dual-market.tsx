@@ -467,6 +467,7 @@ function DualMarketPage() {
                     <TableHead>港股代碼</TableHead>
                     <TableHead className="text-right">主市場市值 (USD)</TableHead>
                     <TableHead className="text-right">港股市值 (USD)</TableHead>
+                    <TableHead className="text-right">折讓／溢價</TableHead>
                     <TableHead className="text-right">操作</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -476,6 +477,10 @@ function DualMarketPage() {
                       submitted.primary === l.primary &&
                       submitted.secondary === l.secondary;
                     const mc = mcMap.get(`${l.primary}|${l.secondary}`);
+                    const premium =
+                      mc?.primary != null && mc?.secondary != null && mc.primary !== 0
+                        ? ((mc.secondary - mc.primary) / mc.primary) * 100
+                        : null;
                     return (
                       <TableRow
                         key={`${l.primary}-${l.secondary}`}
@@ -503,6 +508,9 @@ function DualMarketPage() {
                               ? "…"
                               : "—"}
                         </TableCell>
+                        <TableCell className="text-right font-mono text-xs">
+                          <PctBadge value={premium} />
+                        </TableCell>
                         <TableCell className="text-right">
                           <Button
                             size="sm"
@@ -522,7 +530,7 @@ function DualMarketPage() {
                   {filteredListings.length === 0 && (
                     <TableRow>
                       <TableCell
-                        colSpan={8}
+                        colSpan={9}
                         className="text-center text-muted-foreground py-8"
                       >
                         找不到符合條件的公司
