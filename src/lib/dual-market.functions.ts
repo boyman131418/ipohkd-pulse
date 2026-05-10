@@ -133,22 +133,69 @@ async function fetchFx(from: string, to: string): Promise<number | null> {
   }
 }
 
+let cachedCrumb: { crumb: string; cookie: string; ts: number } | null = null;
+
+async function getYahooCrumb(): Promise<{ crumb: string; cookie: string } | null> {
+  if (cachedCrumb && Date.now() - cachedCrumb.ts < 30 * 60 * 1000) {
+    return { crumb: cachedCrumb.crumb, cookie: cachedCrumb.cookie };
+  }
+  try {
+    const seedRes = await fetch("https://fc.yahoo.com", {
+      headers: { "User-Agent": "Mozilla/5.0" },
+      redirect: "manual",
+    });
+    const setCookie = seedRes.headers.get("set-cookie") || "";
+    const cookie = setCookie
+      .split(/,(?=[^ ;]+=)/)
+      .map((c) => c.split(";")[0].trim())
+      .filter(Boolean)
+      .join("; ");
+    if (!cookie) return null;
+    const crumbRes = await fetch(
+      "https://query1.finance.yahoo.com/v1/test/getcrumb",
+      {
+        headers: { "User-Agent": "Mozilla/5.0", Cookie: cookie },
+      },
+    );
+    if (!crumbRes.ok) return null;
+    const crumb = (await crumbRes.text()).trim();
+    if (!crumb) return null;
+    cachedCrumb = { crumb, cookie, ts: Date.now() };
+    return { crumb, cookie };
+  } catch {
+    return null;
+  }
+}
+
 async function fetchQuoteMeta(
   symbol: string,
 ): Promise<{ marketCap: number | null; sharesOutstanding: number | null }> {
   try {
-    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}`;
+    const auth = await getYahooCrumb();
+    if (!auth) return { marketCap: null, sharesOutstanding: null };
+    const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(
+      symbol,
+    )}?modules=price,defaultKeyStatistics&crumb=${encodeURIComponent(auth.crumb)}`;
     const res = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0", Accept: "application/json" },
+      headers: {
+        "User-Agent": "Mozilla/5.0",
+        Accept: "application/json",
+        Cookie: auth.cookie,
+      },
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) {
+      // Crumb可能過期，清除快取下次再試
+      cachedCrumb = null;
+      return { marketCap: null, sharesOutstanding: null };
+    }
     const json = (await res.json()) as any;
-    const q = json?.quoteResponse?.result?.[0] ?? null;
-    if (!q) return { marketCap: null, sharesOutstanding: null };
+    const result = json?.quoteSummary?.result?.[0];
+    if (!result) return { marketCap: null, sharesOutstanding: null };
+    const mc = result?.price?.marketCap?.raw;
+    const so = result?.defaultKeyStatistics?.sharesOutstanding?.raw;
     return {
-      marketCap: typeof q.marketCap === "number" ? q.marketCap : null,
-      sharesOutstanding:
-        typeof q.sharesOutstanding === "number" ? q.sharesOutstanding : null,
+      marketCap: typeof mc === "number" ? mc : null,
+      sharesOutstanding: typeof so === "number" ? so : null,
     };
   } catch {
     return { marketCap: null, sharesOutstanding: null };
@@ -199,4 +246,89 @@ export const getDualMarketData = createServerFn({ method: "GET" })
       secondaryToUsd,
       fetchedAt: Date.now(),
     } satisfies DualMarketResult;
+  });
+
+export type ListingMcRow = {
+  primary: string;
+  secondary: string;
+  primaryMcUsd: number | null;
+  secondaryMcUsd: number | null;
+};
+
+const fxCache = new Map<string, { rate: number | null; ts: number }>();
+async function fetchFxCached(from: string, to: string): Promise<number | null> {
+  const key = `${from}->${to}`;
+  const hit = fxCache.get(key);
+  if (hit && Date.now() - hit.ts < 10 * 60 * 1000) return hit.rate;
+  const rate = await fetchFx(from, to);
+  fxCache.set(key, { rate, ts: Date.now() });
+  return rate;
+}
+
+const mcCache = new Map<
+  string,
+  { mcUsd: number | null; ts: number }
+>();
+
+async function fetchSymbolMcUsd(symbol: string): Promise<number | null> {
+  const hit = mcCache.get(symbol);
+  if (hit && Date.now() - hit.ts < 10 * 60 * 1000) return hit.mcUsd;
+  const meta = await fetchQuoteMeta(symbol);
+  if (meta.marketCap == null) {
+    mcCache.set(symbol, { mcUsd: null, ts: Date.now() });
+    return null;
+  }
+  // 取貨幣
+  let currency: string | null = null;
+  try {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`;
+    const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+    if (res.ok) {
+      const j = (await res.json()) as any;
+      currency = j?.chart?.result?.[0]?.meta?.currency ?? null;
+    }
+  } catch {}
+  let toUsd: number | null = 1;
+  if (currency && currency !== "USD") {
+    toUsd = await fetchFxCached(currency, "USD");
+  }
+  const mcUsd = toUsd != null ? meta.marketCap * toUsd : null;
+  mcCache.set(symbol, { mcUsd, ts: Date.now() });
+  return mcUsd;
+}
+
+export const getListingsMarketCaps = createServerFn({ method: "GET" })
+  .inputValidator((d: { pairs: { primary: string; secondary: string }[] }) => d)
+  .handler(async ({ data }) => {
+    const symbols = new Set<string>();
+    for (const p of data.pairs) {
+      symbols.add(normalizePrimarySymbol(p.primary));
+      symbols.add(normalizeHKSymbol(p.secondary));
+    }
+    const list = Array.from(symbols);
+    const map = new Map<string, number | null>();
+    // 限制併發以免被 Yahoo 限流
+    const concurrency = 4;
+    let idx = 0;
+    async function worker() {
+      while (idx < list.length) {
+        const i = idx++;
+        const s = list[i];
+        map.set(s, await fetchSymbolMcUsd(s));
+      }
+    }
+    await Promise.all(
+      Array.from({ length: Math.min(concurrency, list.length) }, () => worker()),
+    );
+    const rows: ListingMcRow[] = data.pairs.map((p) => {
+      const ps = normalizePrimarySymbol(p.primary);
+      const ss = normalizeHKSymbol(p.secondary);
+      return {
+        primary: p.primary,
+        secondary: p.secondary,
+        primaryMcUsd: map.get(ps) ?? null,
+        secondaryMcUsd: map.get(ss) ?? null,
+      };
+    });
+    return { rows, fetchedAt: Date.now() };
   });
