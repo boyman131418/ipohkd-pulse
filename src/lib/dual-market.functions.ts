@@ -104,9 +104,12 @@ async function fetchYahoo(symbol: string, rangeKey: string): Promise<SymbolSerie
 function normalizeHKSymbol(input: string): string {
   const s = input.trim().toUpperCase();
   if (s.includes(".")) return s;
-  // 純數字 → 港股
   const digits = s.replace(/\D/g, "");
-  if (digits) return `${parseInt(digits, 10)}.HK`;
+  if (digits) {
+    // Yahoo 港股代碼需要 4 位零填充（例如 939 → 0939.HK）
+    const padded = String(parseInt(digits, 10)).padStart(4, "0");
+    return `${padded}.HK`;
+  }
   return s;
 }
 
