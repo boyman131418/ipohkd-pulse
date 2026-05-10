@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/select";
 import {
   getDualMarketData,
+  getListingsMarketCaps,
   type DualMarketResult,
   type SymbolSeries,
 } from "@/lib/dual-market.functions";
@@ -239,6 +240,31 @@ function DualMarketPage() {
     staleTime: 2 * 60 * 1000,
     enabled: !!submitted.primary && !!submitted.secondary,
   });
+
+  const listingsMcQuery = useQuery({
+    queryKey: ["listings-mc"],
+    queryFn: () =>
+      getListingsMarketCaps({
+        data: {
+          pairs: DUAL_LISTINGS.map((l) => ({
+            primary: l.primary,
+            secondary: l.secondary,
+          })),
+        },
+      }),
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const mcMap = useMemo(() => {
+    const m = new Map<string, { primary: number | null; secondary: number | null }>();
+    listingsMcQuery.data?.rows.forEach((r) => {
+      m.set(`${r.primary}|${r.secondary}`, {
+        primary: r.primaryMcUsd,
+        secondary: r.secondaryMcUsd,
+      });
+    });
+    return m;
+  }, [listingsMcQuery.data]);
 
   const data = dataQuery.data as DualMarketResult | undefined;
 
