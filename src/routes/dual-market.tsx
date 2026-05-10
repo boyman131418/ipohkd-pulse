@@ -242,19 +242,25 @@ function DualMarketPage() {
     if (!data) return null;
     const p = data.primary;
     const s = data.secondary;
-    const primaryUsd =
-      p.close != null && data.primaryToUsd != null
-        ? +(p.close * data.primaryToUsd).toFixed(3)
+    const primaryMcUsd =
+      p.marketCap != null && data.primaryToUsd != null
+        ? p.marketCap * data.primaryToUsd
         : null;
-    const secondaryUsd =
-      s.close != null && data.secondaryToUsd != null
-        ? +(s.close * data.secondaryToUsd).toFixed(3)
+    const secondaryMcUsd =
+      s.marketCap != null && data.secondaryToUsd != null
+        ? s.marketCap * data.secondaryToUsd
         : null;
     const premiumPct =
-      primaryUsd != null && secondaryUsd != null && primaryUsd !== 0
-        ? +(((secondaryUsd - primaryUsd) / primaryUsd) * 100).toFixed(2)
+      primaryMcUsd != null && secondaryMcUsd != null && primaryMcUsd !== 0
+        ? +(((secondaryMcUsd - primaryMcUsd) / primaryMcUsd) * 100).toFixed(2)
         : null;
-    return { primaryUsd, secondaryUsd, premiumPct };
+    return {
+      primaryMc: p.marketCap,
+      secondaryMc: s.marketCap,
+      primaryMcUsd,
+      secondaryMcUsd,
+      premiumPct,
+    };
   }, [data]);
 
   function submit(e?: React.FormEvent) {
