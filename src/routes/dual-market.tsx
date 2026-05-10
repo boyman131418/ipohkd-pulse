@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   LineChart,
   Line,
@@ -220,6 +220,16 @@ function DualMarketPage() {
   const [secondary, setSecondary] = useState("7709");
   const [range, setRange] = useState("6mo");
   const [listingQuery, setListingQuery] = useState("");
+  const [sectorFilter, setSectorFilter] = useState<string>("__all");
+  const [marketFilter, setMarketFilter] = useState<string>("__all");
+  const chartRef = useRef<HTMLDivElement | null>(null);
+
+  function scrollToChart() {
+    if (typeof window === "undefined") return;
+    requestAnimationFrame(() => {
+      chartRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
 
   const [submitted, setSubmitted] = useState({
     primary: "000660.KS",
@@ -305,29 +315,40 @@ function DualMarketPage() {
       secondary: secondary.trim(),
       range,
     });
+    scrollToChart();
   }
 
   function pickListing(item: DualListing) {
     setPrimary(item.primary);
     setSecondary(item.secondary);
     setSubmitted({ primary: item.primary, secondary: item.secondary, range });
-    if (typeof window !== "undefined") {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
+    scrollToChart();
   }
 
   const filteredListings = useMemo(() => {
     const q = listingQuery.trim().toLowerCase();
-    if (!q) return DUAL_LISTINGS;
-    return DUAL_LISTINGS.filter(
-      (l) =>
+    return DUAL_LISTINGS.filter((l) => {
+      if (sectorFilter !== "__all" && (l.sector ?? "") !== sectorFilter) return false;
+      if (marketFilter !== "__all" && l.primaryMarket !== marketFilter) return false;
+      if (!q) return true;
+      return (
         l.name.toLowerCase().includes(q) ||
         l.primary.toLowerCase().includes(q) ||
         l.secondary.toLowerCase().includes(q) ||
         (l.sector ?? "").toLowerCase().includes(q) ||
-        l.primaryMarket.toLowerCase().includes(q),
-    );
-  }, [listingQuery]);
+        l.primaryMarket.toLowerCase().includes(q)
+      );
+    });
+  }, [listingQuery, sectorFilter, marketFilter]);
+
+  const sectorOptions = useMemo(
+    () => Array.from(new Set(DUAL_LISTINGS.map((l) => l.sector ?? "").filter(Boolean))).sort(),
+    [],
+  );
+  const marketOptions = useMemo(
+    () => Array.from(new Set(DUAL_LISTINGS.map((l) => l.primaryMarket))).sort(),
+    [],
+  );
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -461,8 +482,36 @@ function DualMarketPage() {
                 <TableHeader className="sticky top-0 bg-background z-10">
                   <TableRow>
                     <TableHead>公司</TableHead>
-                    <TableHead>行業</TableHead>
-                    <TableHead>主市場</TableHead>
+                    <TableHead>
+                      <Select value={sectorFilter} onValueChange={setSectorFilter}>
+                        <SelectTrigger className="h-8 w-[120px]">
+                          <SelectValue placeholder="行業" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__all">全部行業</SelectItem>
+                          {sectorOptions.map((s) => (
+                            <SelectItem key={s} value={s}>
+                              {s}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableHead>
+                    <TableHead>
+                      <Select value={marketFilter} onValueChange={setMarketFilter}>
+                        <SelectTrigger className="h-8 w-[120px]">
+                          <SelectValue placeholder="主市場" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__all">全部主市場</SelectItem>
+                          {marketOptions.map((m) => (
+                            <SelectItem key={m} value={m}>
+                              {m}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableHead>
                     <TableHead>主市場代碼</TableHead>
                     <TableHead>港股代碼</TableHead>
                     <TableHead className="text-right">主市場市值 (USD)</TableHead>
@@ -549,7 +598,7 @@ function DualMarketPage() {
 
         {data && (
           <>
-            <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <section ref={chartRef} className="grid grid-cols-1 sm:grid-cols-3 gap-4 scroll-mt-20">
               <StatCard
                 label={`主市場 ${data.primary.symbol}　市值`}
                 value={
