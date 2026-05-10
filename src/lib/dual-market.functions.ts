@@ -133,22 +133,69 @@ async function fetchFx(from: string, to: string): Promise<number | null> {
   }
 }
 
+let cachedCrumb: { crumb: string; cookie: string; ts: number } | null = null;
+
+async function getYahooCrumb(): Promise<{ crumb: string; cookie: string } | null> {
+  if (cachedCrumb && Date.now() - cachedCrumb.ts < 30 * 60 * 1000) {
+    return { crumb: cachedCrumb.crumb, cookie: cachedCrumb.cookie };
+  }
+  try {
+    const seedRes = await fetch("https://fc.yahoo.com", {
+      headers: { "User-Agent": "Mozilla/5.0" },
+      redirect: "manual",
+    });
+    const setCookie = seedRes.headers.get("set-cookie") || "";
+    const cookie = setCookie
+      .split(/,(?=[^ ;]+=)/)
+      .map((c) => c.split(";")[0].trim())
+      .filter(Boolean)
+      .join("; ");
+    if (!cookie) return null;
+    const crumbRes = await fetch(
+      "https://query1.finance.yahoo.com/v1/test/getcrumb",
+      {
+        headers: { "User-Agent": "Mozilla/5.0", Cookie: cookie },
+      },
+    );
+    if (!crumbRes.ok) return null;
+    const crumb = (await crumbRes.text()).trim();
+    if (!crumb) return null;
+    cachedCrumb = { crumb, cookie, ts: Date.now() };
+    return { crumb, cookie };
+  } catch {
+    return null;
+  }
+}
+
 async function fetchQuoteMeta(
   symbol: string,
 ): Promise<{ marketCap: number | null; sharesOutstanding: number | null }> {
   try {
-    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}`;
+    const auth = await getYahooCrumb();
+    if (!auth) return { marketCap: null, sharesOutstanding: null };
+    const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(
+      symbol,
+    )}?modules=price,defaultKeyStatistics&crumb=${encodeURIComponent(auth.crumb)}`;
     const res = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0", Accept: "application/json" },
+      headers: {
+        "User-Agent": "Mozilla/5.0",
+        Accept: "application/json",
+        Cookie: auth.cookie,
+      },
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) {
+      // Crumb可能過期，清除快取下次再試
+      cachedCrumb = null;
+      return { marketCap: null, sharesOutstanding: null };
+    }
     const json = (await res.json()) as any;
-    const q = json?.quoteResponse?.result?.[0] ?? null;
-    if (!q) return { marketCap: null, sharesOutstanding: null };
+    const result = json?.quoteSummary?.result?.[0];
+    if (!result) return { marketCap: null, sharesOutstanding: null };
+    const mc = result?.price?.marketCap?.raw;
+    const so = result?.defaultKeyStatistics?.sharesOutstanding?.raw;
     return {
-      marketCap: typeof q.marketCap === "number" ? q.marketCap : null,
-      sharesOutstanding:
-        typeof q.sharesOutstanding === "number" ? q.sharesOutstanding : null,
+      marketCap: typeof mc === "number" ? mc : null,
+      sharesOutstanding: typeof so === "number" ? so : null,
     };
   } catch {
     return { marketCap: null, sharesOutstanding: null };
