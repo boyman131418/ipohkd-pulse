@@ -247,3 +247,88 @@ export const getDualMarketData = createServerFn({ method: "GET" })
       fetchedAt: Date.now(),
     } satisfies DualMarketResult;
   });
+
+export type ListingMcRow = {
+  primary: string;
+  secondary: string;
+  primaryMcUsd: number | null;
+  secondaryMcUsd: number | null;
+};
+
+const fxCache = new Map<string, { rate: number | null; ts: number }>();
+async function fetchFxCached(from: string, to: string): Promise<number | null> {
+  const key = `${from}->${to}`;
+  const hit = fxCache.get(key);
+  if (hit && Date.now() - hit.ts < 10 * 60 * 1000) return hit.rate;
+  const rate = await fetchFx(from, to);
+  fxCache.set(key, { rate, ts: Date.now() });
+  return rate;
+}
+
+const mcCache = new Map<
+  string,
+  { mcUsd: number | null; ts: number }
+>();
+
+async function fetchSymbolMcUsd(symbol: string): Promise<number | null> {
+  const hit = mcCache.get(symbol);
+  if (hit && Date.now() - hit.ts < 10 * 60 * 1000) return hit.mcUsd;
+  const meta = await fetchQuoteMeta(symbol);
+  if (meta.marketCap == null) {
+    mcCache.set(symbol, { mcUsd: null, ts: Date.now() });
+    return null;
+  }
+  // 取貨幣
+  let currency: string | null = null;
+  try {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`;
+    const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+    if (res.ok) {
+      const j = (await res.json()) as any;
+      currency = j?.chart?.result?.[0]?.meta?.currency ?? null;
+    }
+  } catch {}
+  let toUsd: number | null = 1;
+  if (currency && currency !== "USD") {
+    toUsd = await fetchFxCached(currency, "USD");
+  }
+  const mcUsd = toUsd != null ? meta.marketCap * toUsd : null;
+  mcCache.set(symbol, { mcUsd, ts: Date.now() });
+  return mcUsd;
+}
+
+export const getListingsMarketCaps = createServerFn({ method: "GET" })
+  .inputValidator((d: { pairs: { primary: string; secondary: string }[] }) => d)
+  .handler(async ({ data }) => {
+    const symbols = new Set<string>();
+    for (const p of data.pairs) {
+      symbols.add(normalizePrimarySymbol(p.primary));
+      symbols.add(normalizeHKSymbol(p.secondary));
+    }
+    const list = Array.from(symbols);
+    const map = new Map<string, number | null>();
+    // 限制併發以免被 Yahoo 限流
+    const concurrency = 4;
+    let idx = 0;
+    async function worker() {
+      while (idx < list.length) {
+        const i = idx++;
+        const s = list[i];
+        map.set(s, await fetchSymbolMcUsd(s));
+      }
+    }
+    await Promise.all(
+      Array.from({ length: Math.min(concurrency, list.length) }, () => worker()),
+    );
+    const rows: ListingMcRow[] = data.pairs.map((p) => {
+      const ps = normalizePrimarySymbol(p.primary);
+      const ss = normalizeHKSymbol(p.secondary);
+      return {
+        primary: p.primary,
+        secondary: p.secondary,
+        primaryMcUsd: map.get(ps) ?? null,
+        secondaryMcUsd: map.get(ss) ?? null,
+      };
+    });
+    return { rows, fetchedAt: Date.now() };
+  });
