@@ -430,7 +430,14 @@ function DualMarketPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between gap-2 flex-wrap">
-              <span>主次市場對照表（按公司即可對比）</span>
+              <span>
+                主次市場對照表（按公司即可對比）
+                {allListings.length > 0 && (
+                  <span className="ml-2 text-xs text-muted-foreground font-normal">
+                    共 {allListings.length} 對
+                  </span>
+                )}
+              </span>
               <Input
                 value={listingQuery}
                 onChange={(e) => setListingQuery(e.target.value)}
@@ -545,7 +552,7 @@ function DualMarketPage() {
                         colSpan={9}
                         className="text-center text-muted-foreground py-8"
                       >
-                        找不到符合條件的公司
+                        {listingsQuery.isLoading ? "載入中…" : "找不到符合條件的公司"}
                       </TableCell>
                     </TableRow>
                   )}
