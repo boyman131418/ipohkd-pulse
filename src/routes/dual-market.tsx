@@ -191,15 +191,19 @@ function DualMarketPage() {
     if (!data) return null;
     const p = data.primary;
     const s = data.secondary;
-    let primaryHKD: number | null = null;
-    if (p.close != null && data.fxRate != null) {
-      primaryHKD = +(p.close * data.fxRate).toFixed(3);
-    }
-    const premiumPct =
-      primaryHKD != null && s.close != null && primaryHKD !== 0
-        ? +(((s.close - primaryHKD) / primaryHKD) * 100).toFixed(2)
+    const primaryUsd =
+      p.close != null && data.primaryToUsd != null
+        ? +(p.close * data.primaryToUsd).toFixed(3)
         : null;
-    return { primaryHKD, premiumPct };
+    const secondaryUsd =
+      s.close != null && data.secondaryToUsd != null
+        ? +(s.close * data.secondaryToUsd).toFixed(3)
+        : null;
+    const premiumPct =
+      primaryUsd != null && secondaryUsd != null && primaryUsd !== 0
+        ? +(((secondaryUsd - primaryUsd) / primaryUsd) * 100).toFixed(2)
+        : null;
+    return { primaryUsd, secondaryUsd, premiumPct };
   }, [data]);
 
   function submit(e?: React.FormEvent) {
@@ -354,43 +358,43 @@ function DualMarketPage() {
 
         {data && (
           <>
-            <section className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <StatCard
                 label={`主市場 ${data.primary.symbol}`}
                 value={
-                  <span className="font-mono">
-                    {data.primary.close != null
-                      ? `${data.primary.close.toFixed(2)} ${data.primary.currency ?? ""}`
-                      : "—"}
-                  </span>
+                  <div>
+                    <span className="font-mono">
+                      {data.primary.close != null
+                        ? `${data.primary.close.toFixed(2)} ${data.primary.currency ?? ""}`
+                        : "—"}
+                    </span>
+                    <div className="text-xs text-muted-foreground font-mono mt-1">
+                      {stats?.primaryUsd != null
+                        ? `≈ ${stats.primaryUsd.toFixed(3)} USD`
+                        : "—"}
+                    </div>
+                  </div>
                 }
               />
               <StatCard
                 label={`次市場 ${data.secondary.symbol}`}
                 value={
-                  <span className="font-mono">
-                    {data.secondary.close != null
-                      ? `${data.secondary.close.toFixed(3)} ${data.secondary.currency ?? "HKD"}`
-                      : "—"}
-                  </span>
+                  <div>
+                    <span className="font-mono">
+                      {data.secondary.close != null
+                        ? `${data.secondary.close.toFixed(3)} ${data.secondary.currency ?? "HKD"}`
+                        : "—"}
+                    </span>
+                    <div className="text-xs text-muted-foreground font-mono mt-1">
+                      {stats?.secondaryUsd != null
+                        ? `≈ ${stats.secondaryUsd.toFixed(3)} USD`
+                        : "—"}
+                    </div>
+                  </div>
                 }
               />
               <StatCard
-                label={`主市場換算（HKD）${
-                  data.fxRate != null
-                    ? `@${data.fxRate.toFixed(4)}`
-                    : ""
-                }`}
-                value={
-                  <span className="font-mono">
-                    {stats?.primaryHKD != null
-                      ? stats.primaryHKD.toFixed(3)
-                      : "—"}
-                  </span>
-                }
-              />
-              <StatCard
-                label="港股溢價／折讓"
+                label="港股溢價／折讓（USD 結算）"
                 value={<PctBadge value={stats?.premiumPct ?? null} />}
                 tone={
                   stats?.premiumPct == null

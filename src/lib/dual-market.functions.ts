@@ -17,8 +17,9 @@ export type SymbolSeries = {
 export type DualMarketResult = {
   primary: SymbolSeries;
   secondary: SymbolSeries;
-  // Premium = (secondary normalized HKD - primary normalized HKD) / primary * 100, simplified using % returns instead
   fxRate: number | null; // primary currency to HKD
+  primaryToUsd: number | null; // primary currency to USD
+  secondaryToUsd: number | null; // secondary currency (HKD) to USD
   fetchedAt: number;
 };
 
@@ -144,10 +145,24 @@ export const getDualMarketData = createServerFn({ method: "GET" })
     } else if (primary.currency === "HKD") {
       fxRate = 1;
     }
+    const [primaryToUsd, secondaryToUsd] = await Promise.all([
+      primary.currency
+        ? primary.currency === "USD"
+          ? Promise.resolve(1)
+          : fetchFx(primary.currency, "USD")
+        : Promise.resolve(null),
+      secondary.currency
+        ? secondary.currency === "USD"
+          ? Promise.resolve(1)
+          : fetchFx(secondary.currency, "USD")
+        : fetchFx("HKD", "USD"),
+    ]);
     return {
       primary,
       secondary,
       fxRate,
+      primaryToUsd,
+      secondaryToUsd,
       fetchedAt: Date.now(),
     } satisfies DualMarketResult;
   });
