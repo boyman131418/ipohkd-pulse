@@ -378,22 +378,26 @@ const MANUAL_LISTINGS: DualListingItem[] = [
   { name: "金山雲", primary: "KC", primaryMarket: "NASDAQ", secondary: "3896", sector: "雲計算" },
   { name: "再鼎醫藥", primary: "ZLAB", primaryMarket: "NASDAQ", secondary: "9688", sector: "生物科技" },
   { name: "名創優品", primary: "MNSO", primaryMarket: "NYSE", secondary: "9896", sector: "零售" },
-  {
-    name: "SK 海力士（南方東英 2x ETF）",
-    primary: "000660.KS",
-    primaryMarket: "KRX",
-    secondary: "7709",
-    sector: "半導體",
-    trackingType: "ETF 2x 槓桿",
-  },
-  {
-    name: "三星電子（南方東英 2x ETF）",
-    primary: "005930.KS",
-    primaryMarket: "KRX",
-    secondary: "7773",
-    sector: "半導體",
-    trackingType: "ETF 2x 槓桿",
-  },
+  // ===== 港交所單一股票槓桿／反向 ETF（南方東英 CSOP，2025 年 3 月起陸續上市） =====
+  // SK 海力士（韓股）
+  { name: "SK 海力士（南方東英 +2x）", primary: "000660.KS", primaryMarket: "KRX", secondary: "7709", sector: "半導體", trackingType: "ETF +2x 槓桿" },
+  // 三星電子（韓股）
+  { name: "三星電子（南方東英 +2x）", primary: "005930.KS", primaryMarket: "KRX", secondary: "7747", sector: "半導體", trackingType: "ETF +2x 槓桿" },
+  { name: "三星電子（南方東英 -2x）", primary: "005930.KS", primaryMarket: "KRX", secondary: "7347", sector: "半導體", trackingType: "ETF -2x 反向" },
+  // Tesla
+  { name: "Tesla（南方東英 +2x）", primary: "TSLA", primaryMarket: "NASDAQ", secondary: "7766", sector: "新能源車", trackingType: "ETF +2x 槓桿" },
+  { name: "Tesla（南方東英 -2x）", primary: "TSLA", primaryMarket: "NASDAQ", secondary: "7366", sector: "新能源車", trackingType: "ETF -2x 反向" },
+  // NVIDIA
+  { name: "NVIDIA（南方東英 +2x）", primary: "NVDA", primaryMarket: "NASDAQ", secondary: "7788", sector: "半導體", trackingType: "ETF +2x 槓桿" },
+  { name: "NVIDIA（南方東英 -2x）", primary: "NVDA", primaryMarket: "NASDAQ", secondary: "7388", sector: "半導體", trackingType: "ETF -2x 反向" },
+  // Coinbase
+  { name: "Coinbase（南方東英 +2x）", primary: "COIN", primaryMarket: "NASDAQ", secondary: "7711", sector: "加密貨幣", trackingType: "ETF +2x 槓桿" },
+  { name: "Coinbase（南方東英 -2x）", primary: "COIN", primaryMarket: "NASDAQ", secondary: "7311", sector: "加密貨幣", trackingType: "ETF -2x 反向" },
+  // MicroStrategy
+  { name: "MicroStrategy（南方東英 +2x）", primary: "MSTR", primaryMarket: "NASDAQ", secondary: "7799", sector: "加密貨幣", trackingType: "ETF +2x 槓桿" },
+  { name: "MicroStrategy（南方東英 -2x）", primary: "MSTR", primaryMarket: "NASDAQ", secondary: "7399", sector: "加密貨幣", trackingType: "ETF -2x 反向" },
+  // Berkshire Hathaway B
+  { name: "Berkshire Hathaway B（南方東英 +2x）", primary: "BRK-B", primaryMarket: "NYSE", secondary: "7777", sector: "綜合金融", trackingType: "ETF +2x 槓桿" },
 ];
 
 // A+H 行業分類（由 H 股代碼或 A 股代碼補充）
