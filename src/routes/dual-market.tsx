@@ -541,7 +541,16 @@ function DualMarketPage() {
                         className={`cursor-pointer ${active ? "bg-muted/60" : ""}`}
                         onClick={() => pickListing(l)}
                       >
-                        <TableCell className="font-medium">{l.name}</TableCell>
+                        <TableCell className="font-medium">
+                          <div className="flex flex-col gap-1">
+                            <span>{l.name}</span>
+                            {l.trackingType && (
+                              <span className="inline-flex w-fit items-center rounded-md border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-500">
+                                {l.trackingType}
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell className="text-muted-foreground text-xs">
                           {l.sector ?? "—"}
                         </TableCell>

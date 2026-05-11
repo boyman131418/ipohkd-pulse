@@ -195,9 +195,17 @@ async function fetchQuoteMeta(
     const result = json?.quoteSummary?.result?.[0];
     if (!result) return { marketCap: null, sharesOutstanding: null };
     const mc = result?.price?.marketCap?.raw;
+    // ETF fallback：ETF 通常無 marketCap，改用基金資產規模（AUM / totalAssets）
+    const totalAssets = result?.defaultKeyStatistics?.totalAssets?.raw;
     const so = result?.defaultKeyStatistics?.sharesOutstanding?.raw;
+    const effectiveMc =
+      typeof mc === "number" && mc > 0
+        ? mc
+        : typeof totalAssets === "number" && totalAssets > 0
+          ? totalAssets
+          : null;
     return {
-      marketCap: typeof mc === "number" ? mc : null,
+      marketCap: effectiveMc,
       sharesOutstanding: typeof so === "number" ? so : null,
     };
   } catch {
@@ -346,6 +354,8 @@ export type DualListingItem = {
   primaryMarket: string;
   secondary: string;
   sector?: string;
+  /** 追蹤類型：未指定即為同公司雙重上市；"ETF" 表示港股為 ETF 追蹤；可附加 "2x" 等槓桿說明 */
+  trackingType?: string;
 };
 
 // 手動維護：非 A+H 的同公司雙重上市（中概股 ADR、韓股等）
@@ -368,7 +378,22 @@ const MANUAL_LISTINGS: DualListingItem[] = [
   { name: "金山雲", primary: "KC", primaryMarket: "NASDAQ", secondary: "3896", sector: "雲計算" },
   { name: "再鼎醫藥", primary: "ZLAB", primaryMarket: "NASDAQ", secondary: "9688", sector: "生物科技" },
   { name: "名創優品", primary: "MNSO", primaryMarket: "NYSE", secondary: "9896", sector: "零售" },
-  { name: "南方海力士 (SK Hynix)", primary: "000660.KS", primaryMarket: "KRX", secondary: "7709", sector: "半導體" },
+  {
+    name: "SK 海力士（南方東英 2x ETF）",
+    primary: "000660.KS",
+    primaryMarket: "KRX",
+    secondary: "7709",
+    sector: "半導體",
+    trackingType: "ETF 2x 槓桿",
+  },
+  {
+    name: "三星電子（南方東英 2x ETF）",
+    primary: "005930.KS",
+    primaryMarket: "KRX",
+    secondary: "7773",
+    sector: "半導體",
+    trackingType: "ETF 2x 槓桿",
+  },
 ];
 
 // A+H 行業分類（由 H 股代碼或 A 股代碼補充）
