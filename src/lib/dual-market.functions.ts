@@ -195,9 +195,17 @@ async function fetchQuoteMeta(
     const result = json?.quoteSummary?.result?.[0];
     if (!result) return { marketCap: null, sharesOutstanding: null };
     const mc = result?.price?.marketCap?.raw;
+    // ETF fallback：ETF 通常無 marketCap，改用基金資產規模（AUM / totalAssets）
+    const totalAssets = result?.defaultKeyStatistics?.totalAssets?.raw;
     const so = result?.defaultKeyStatistics?.sharesOutstanding?.raw;
+    const effectiveMc =
+      typeof mc === "number" && mc > 0
+        ? mc
+        : typeof totalAssets === "number" && totalAssets > 0
+          ? totalAssets
+          : null;
     return {
-      marketCap: typeof mc === "number" ? mc : null,
+      marketCap: effectiveMc,
       sharesOutstanding: typeof so === "number" ? so : null,
     };
   } catch {
