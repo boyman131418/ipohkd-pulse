@@ -174,12 +174,18 @@ async function fetchYahooDaily(symbol: string): Promise<DailyChart | null> {
     exchange: meta.fullExchangeName ?? meta.exchangeName ?? null,
     marketState: meta.marketState ?? null,
     regularMarketPrice: meta.regularMarketPrice ?? null,
-    regularMarketChangePercent:
-      meta.regularMarketPrice != null && meta.chartPreviousClose
-        ? +(((meta.regularMarketPrice - meta.chartPreviousClose) /
-            meta.chartPreviousClose) *
-            100).toFixed(2)
-        : null,
+    regularMarketChangePercent: (() => {
+      const price = meta.regularMarketPrice;
+      // Prefer true previous day close; fall back to second-last close in series.
+      const prevClose =
+        meta.previousClose ??
+        meta.regularMarketPreviousClose ??
+        (closes.length >= 2 ? closes[closes.length - 2] : null);
+      if (price != null && prevClose != null && prevClose !== 0) {
+        return +(((price - prevClose) / prevClose) * 100).toFixed(2);
+      }
+      return null;
+    })(),
     regularMarketDayHigh: meta.regularMarketDayHigh ?? null,
     regularMarketDayLow: meta.regularMarketDayLow ?? null,
     regularMarketVolume: meta.regularMarketVolume ?? null,
