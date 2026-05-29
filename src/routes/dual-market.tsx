@@ -11,7 +11,7 @@ import {
   CartesianGrid,
   Legend,
 } from "recharts";
-import { Search, TrendingUp, TrendingDown, Clock, GitCompare } from "lucide-react";
+import { Search, TrendingUp, TrendingDown, Clock, GitCompare, Sparkles } from "lucide-react";
 import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -358,6 +358,12 @@ function DualMarketPage() {
               <Button variant="default" size="sm">
                 <GitCompare className="h-4 w-4" />
                 主次市場
+              </Button>
+            </Link>
+            <Link to="/ai-picks">
+              <Button variant="ghost" size="sm">
+                <Sparkles className="h-4 w-4" />
+                AI 選股
               </Button>
             </Link>
           </nav>

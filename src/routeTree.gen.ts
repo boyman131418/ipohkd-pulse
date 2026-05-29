@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as DualMarketRouteImport } from './routes/dual-market'
+import { Route as AiPicksRouteImport } from './routes/ai-picks'
 import { Route as IndexRouteImport } from './routes/index'
 
 const DualMarketRoute = DualMarketRouteImport.update({
   id: '/dual-market',
   path: '/dual-market',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AiPicksRoute = AiPicksRouteImport.update({
+  id: '/ai-picks',
+  path: '/ai-picks',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -25,27 +31,31 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/ai-picks': typeof AiPicksRoute
   '/dual-market': typeof DualMarketRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/ai-picks': typeof AiPicksRoute
   '/dual-market': typeof DualMarketRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/ai-picks': typeof AiPicksRoute
   '/dual-market': typeof DualMarketRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/dual-market'
+  fullPaths: '/' | '/ai-picks' | '/dual-market'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dual-market'
-  id: '__root__' | '/' | '/dual-market'
+  to: '/' | '/ai-picks' | '/dual-market'
+  id: '__root__' | '/' | '/ai-picks' | '/dual-market'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AiPicksRoute: typeof AiPicksRoute
   DualMarketRoute: typeof DualMarketRoute
 }
 
@@ -56,6 +66,13 @@ declare module '@tanstack/react-router' {
       path: '/dual-market'
       fullPath: '/dual-market'
       preLoaderRoute: typeof DualMarketRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ai-picks': {
+      id: '/ai-picks'
+      path: '/ai-picks'
+      fullPath: '/ai-picks'
+      preLoaderRoute: typeof AiPicksRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -70,6 +87,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AiPicksRoute: AiPicksRoute,
   DualMarketRoute: DualMarketRoute,
 }
 export const routeTree = rootRouteImport

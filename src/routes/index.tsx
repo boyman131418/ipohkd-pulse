@@ -10,7 +10,7 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
-import { TrendingUp, TrendingDown, Search, Calendar, Clock, LineChart as LineIcon, Activity, GitCompare } from "lucide-react";
+import { TrendingUp, TrendingDown, Search, Calendar, Clock, LineChart as LineIcon, Activity, GitCompare, Sparkles } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -264,6 +264,12 @@ function IPOPage() {
               <Button variant="ghost" size="sm">
                 <GitCompare className="h-4 w-4" />
                 主次市場
+              </Button>
+            </Link>
+            <Link to="/ai-picks">
+              <Button variant="ghost" size="sm">
+                <Sparkles className="h-4 w-4" />
+                AI 選股
               </Button>
             </Link>
             <div className="text-xs text-muted-foreground hidden lg:block ml-2">
