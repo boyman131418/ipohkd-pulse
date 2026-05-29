@@ -427,7 +427,30 @@ function StockDetailDialog({
                     width={55}
                   />
                   <YAxis yAxisId="vol" orientation="right" tick={{ fontSize: 10 }} width={45} />
-                  <Tooltip />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--popover))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: 8,
+                      color: "hsl(var(--popover-foreground))",
+                      fontSize: 12,
+                      boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+                    }}
+                    labelStyle={{
+                      color: "hsl(var(--popover-foreground))",
+                      fontWeight: 600,
+                      marginBottom: 4,
+                    }}
+                    itemStyle={{ color: "hsl(var(--popover-foreground))" }}
+                    cursor={{ stroke: "hsl(var(--muted-foreground))", strokeWidth: 1, strokeDasharray: "3 3" }}
+                    formatter={(value: number | string, name: string) => {
+                      const n = typeof value === "number" ? value : Number(value);
+                      if (!Number.isFinite(n)) return [String(value), name];
+                      if (name === "volume") return [n.toLocaleString(), "成交量"];
+                      if (name === "close") return [n.toFixed(2), "收市價"];
+                      return [n.toLocaleString(), name];
+                    }}
+                  />
                   <Bar yAxisId="vol" dataKey="volume" fill="hsl(var(--muted-foreground))" opacity={0.3} />
                   <Line
                     yAxisId="price"
