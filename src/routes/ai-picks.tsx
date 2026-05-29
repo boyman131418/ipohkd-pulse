@@ -193,9 +193,16 @@ function AIPicksPage() {
               AI 精選
             </div>
             <h2 className="text-3xl sm:text-4xl font-black tracking-tight">每日 AI 選股</h2>
-            <p className="mt-3 text-muted-foreground max-w-xl">
-              來源：Google Sheet 同步資料庫。按下股票編號可查看詳細資料同日線圖。
-            </p>
+            <div className="mt-3 text-muted-foreground max-w-2xl space-y-2 text-sm leading-relaxed">
+              <p>
+                這 AI 扮演一名頂級華爾街事件驅動（Event Driven）及動能交易（Momentum Trading）分析師。
+              </p>
+              <p>
+                目標<span className="text-foreground font-semibold">不是</span>尋找長期投資股票，而是盡全力尋找未來
+                <span className="text-primary font-semibold"> 1 至 30 日</span>內最有機會出現
+                <span className="text-primary font-semibold"> 30% 至 500% </span>爆發升幅的美國股票。
+              </p>
+            </div>
             <p className="mt-3 text-xs text-muted-foreground">
               <Clock className="inline h-3 w-3 mr-1" />
               更新：{fmtTs(data.fetchedAt)}　·　共 {picks.length} 隻
