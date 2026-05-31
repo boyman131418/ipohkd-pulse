@@ -80,7 +80,7 @@ export const getAIPicks = createServerFn({ method: "GET" }).handler(
       const text = await res.text();
       const rows = parseCsv(text);
       if (rows.length < 2) return { picks: [], fetchedAt: Date.now() };
-      const data = rows.slice(1);
+      const data = rows.slice(1).filter((r) => (r[0] ?? "").trim().length > 0);
       const picks: AIPick[] = data.map((r) => {
         const buy = num(r[2] ?? "");
         const cur = num(r[5] ?? "");
