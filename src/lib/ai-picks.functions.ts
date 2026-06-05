@@ -81,28 +81,75 @@ export const getAIPicks = createServerFn({ method: "GET" }).handler(
       const rows = parseCsv(text);
       if (rows.length < 2) return { picks: [], fetchedAt: Date.now() };
       const data = rows.slice(1).filter((r) => (r[0] ?? "").trim().length > 0);
-      const picks: AIPick[] = data.map((r) => {
-        const buy = num(r[2] ?? "");
-        const cur = num(r[5] ?? "");
+      // Sheet layout (after removing current price / diff columns):
+      // A=date, B=symbol, C=buyPrice, D=confidence, E=reason, F=quoteUrl
+      const raw = data.map((r) => ({
+        date: (r[0] ?? "").trim(),
+        symbol: (r[1] ?? "").trim(),
+        buyPrice: num(r[2] ?? ""),
+        confidence: r[3] ?? "",
+        confidenceStars: countStars(r[3] ?? ""),
+        reason: r[4] ?? "",
+        quoteUrl: (r[5] ?? "").trim() || null,
+      }));
+
+      // Dedupe by symbol — keep the entry with the earliest date.
+      const bySymbol = new Map<string, (typeof raw)[number]>();
+      for (const row of raw) {
+        if (!row.symbol) continue;
+        const key = row.symbol.toUpperCase();
+        const existing = bySymbol.get(key);
+        if (!existing) {
+          bySymbol.set(key, row);
+          continue;
+        }
+        const a = Date.parse(row.date);
+        const b = Date.parse(existing.date);
+        const aOk = Number.isFinite(a);
+        const bOk = Number.isFinite(b);
+        if (aOk && bOk) {
+          if (a < b) bySymbol.set(key, row);
+        } else if (row.date < existing.date) {
+          bySymbol.set(key, row);
+        }
+      }
+      const unique = Array.from(bySymbol.values());
+
+      // Fetch current price from Yahoo in parallel.
+      const prices = await Promise.all(
+        unique.map((r) => fetchYahooQuote(r.symbol).catch(() => null)),
+      );
+
+      const picks: AIPick[] = unique.map((r, i) => {
+        const cur = prices[i];
         const diff =
-          buy != null && cur != null ? +(cur - buy).toFixed(4) : null;
+          r.buyPrice != null && cur != null ? +(cur - r.buyPrice).toFixed(4) : null;
         const diffPct =
-          buy != null && cur != null && buy !== 0
-            ? +(((cur - buy) / buy) * 100).toFixed(2)
+          r.buyPrice != null && cur != null && r.buyPrice !== 0
+            ? +(((cur - r.buyPrice) / r.buyPrice) * 100).toFixed(2)
             : null;
         return {
-          date: r[0] ?? "",
-          symbol: (r[1] ?? "").trim(),
-          buyPrice: buy,
-          confidence: r[3] ?? "",
-          confidenceStars: countStars(r[3] ?? ""),
-          reason: r[4] ?? "",
+          date: r.date,
+          symbol: r.symbol,
+          buyPrice: r.buyPrice,
+          confidence: r.confidence,
+          confidenceStars: r.confidenceStars,
+          reason: r.reason,
           currentPrice: cur,
           diff,
           diffPct,
-          quoteUrl: r[7] ?? null,
+          quoteUrl: r.quoteUrl,
         };
       });
+
+      // Default order: newest date first.
+      picks.sort((a, b) => {
+        const ta = Date.parse(a.date);
+        const tb = Date.parse(b.date);
+        if (Number.isFinite(ta) && Number.isFinite(tb)) return tb - ta;
+        return b.date.localeCompare(a.date);
+      });
+
       return { picks, fetchedAt: Date.now() };
     } catch (err) {
       console.error("getAIPicks failed", err);
@@ -110,6 +157,32 @@ export const getAIPicks = createServerFn({ method: "GET" }).handler(
     }
   },
 );
+
+async function fetchYahooQuote(rawSymbol: string): Promise<number | null> {
+  for (const sym of candidateSymbols(rawSymbol)) {
+    try {
+      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
+        sym,
+      )}?interval=1d&range=5d`;
+      const res = await fetch(url, {
+        headers: { "User-Agent": "Mozilla/5.0", Accept: "application/json" },
+      });
+      if (!res.ok) continue;
+      const json = (await res.json()) as any;
+      const result = json?.chart?.result?.[0];
+      if (!result) continue;
+      const meta = result.meta || {};
+      if (typeof meta.regularMarketPrice === "number") return meta.regularMarketPrice;
+      const closes: (number | null)[] = result.indicators?.quote?.[0]?.close || [];
+      for (let i = closes.length - 1; i >= 0; i--) {
+        if (typeof closes[i] === "number") return closes[i] as number;
+      }
+    } catch {
+      // try next
+    }
+  }
+  return null;
+}
 
 export type DailyChart = {
   symbol: string;
