@@ -112,7 +112,7 @@ function AIPicksPage() {
   const picks = data.picks;
 
   const [query, setQuery] = useState("");
-  const [sortBy, setSortBy] = useState<SortKey>("stars");
+  const [sortBy, setSortBy] = useState<SortKey>("date");
   const [filter, setFilter] = useState<"all" | "5" | "4plus" | "winner" | "loser">("all");
   const [openSymbol, setOpenSymbol] = useState<string | null>(null);
 
