@@ -220,7 +220,7 @@ function AIPicksPage() {
           </div>
         </section>
 
-        <section className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <section className="grid grid-cols-2 sm:grid-cols-5 gap-4">
           <StatCard label="選股總數" value={stats.total.toString()} />
           <StatCard
             label="獲利持倉"
@@ -234,6 +234,11 @@ function AIPicksPage() {
           />
           <StatCard
             label="總未實現損益（每持倉1股）"
+            value={`${stats.totalDiff >= 0 ? "+" : ""}${fmt(stats.totalDiff, 2)}`}
+            tone={stats.totalDiff >= 0 ? "success" : "danger"}
+          />
+          <StatCard
+            label="差價加總（每持倉1股）"
             value={`${stats.totalDiff >= 0 ? "+" : ""}${fmt(stats.totalDiff, 2)}`}
             tone={stats.totalDiff >= 0 ? "success" : "danger"}
           />
