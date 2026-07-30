@@ -342,6 +342,33 @@ function AIPicksPage() {
   );
 }
 
+function StatCard({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: "success" | "danger";
+}) {
+  const color =
+    tone === "success"
+      ? "var(--color-success)"
+      : tone === "danger"
+        ? "var(--color-danger)"
+        : "var(--foreground)";
+  return (
+    <Card>
+      <CardContent className="pt-6">
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className="text-2xl font-bold mt-1" style={{ color }}>
+          {value}
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
 function StockDetailDialog({
   symbol,
   pick,
