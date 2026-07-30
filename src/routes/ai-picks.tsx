@@ -148,6 +148,16 @@ function AIPicksPage() {
     return rows;
   }, [picks, query, sortBy, filter]);
 
+  const stats = useMemo(() => {
+    const total = picks.length;
+    const withDiff = picks.filter((r) => r.diffPct != null);
+    const positive = withDiff.filter((r) => (r.diffPct ?? 0) > 0).length;
+    const negative = withDiff.filter((r) => (r.diffPct ?? 0) < 0).length;
+    const neutral = withDiff.filter((r) => (r.diffPct ?? 0) === 0).length;
+    const totalDiff = picks.reduce((s, r) => s + (r.diff ?? 0), 0);
+    return { total, positive, negative, neutral, totalDiff };
+  }, [picks]);
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b border-border/60 backdrop-blur-sm sticky top-0 z-10 bg-background/80">
@@ -208,6 +218,25 @@ function AIPicksPage() {
               更新：{fmtTs(data.fetchedAt)}　·　共 {picks.length} 隻
             </p>
           </div>
+        </section>
+
+        <section className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <StatCard label="選股總數" value={stats.total.toString()} />
+          <StatCard
+            label="獲利持倉"
+            value={stats.positive.toString()}
+            tone="success"
+          />
+          <StatCard
+            label="虧損持倉"
+            value={stats.negative.toString()}
+            tone="danger"
+          />
+          <StatCard
+            label="總未實現損益（每持倉1股）"
+            value={`${stats.totalDiff >= 0 ? "+" : ""}${fmt(stats.totalDiff, 2)}`}
+            tone={stats.totalDiff >= 0 ? "success" : "danger"}
+          />
         </section>
 
         <div className="flex flex-col sm:flex-row gap-3">
@@ -310,6 +339,33 @@ function AIPicksPage() {
         onClose={() => setOpenSymbol(null)}
       />
     </div>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: "success" | "danger";
+}) {
+  const color =
+    tone === "success"
+      ? "var(--color-success)"
+      : tone === "danger"
+        ? "var(--color-danger)"
+        : "var(--foreground)";
+  return (
+    <Card>
+      <CardContent className="pt-6">
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className="text-2xl font-bold mt-1" style={{ color }}>
+          {value}
+        </p>
+      </CardContent>
+    </Card>
   );
 }
 
